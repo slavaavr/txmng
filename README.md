@@ -12,4 +12,4 @@ $ go get -u github.com/slavaavr/txmng
 ```
 
 ### Usage
-For this see [examples](https://github.com/slavaavr/txmng/examples) folder.
+For this see [examples](https://github.com/slavaavr/txmng/tree/main/examples) folder.
