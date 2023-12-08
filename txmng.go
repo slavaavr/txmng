@@ -28,18 +28,23 @@ type txManager struct {
 	sequence int64
 }
 
-func New(p DBProvider, opts ...Option) (TxManager, DBManager) {
+func New(p DBProvider, opts ...Option) (txm TxManager, dbm DBManager) {
 	cfg := Config{}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
 
-	res := &txManager{
+	m := &txManager{
 		dbProvider: p,
 		cfg:        cfg,
 	}
 
-	return res, res
+	txm, dbm = m, m
+	if m.cfg.retries != nil {
+		txm = newTxManagerWithReties(txm, *m.cfg.retries)
+	}
+
+	return txm, dbm
 }
 
 type txKey struct{}
