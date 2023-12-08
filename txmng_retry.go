@@ -2,7 +2,6 @@ package txmng
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 )
@@ -20,23 +19,19 @@ func newTxManagerWithReties(m TxManager, r retries) TxManager {
 }
 
 func (s *txManagerWithReties) Tx(opts Opts, f func(ctx context.Context) (Scanner, error)) (Scanner, error) {
-	var (
-		err   = errors.New("executing tx with retries")
-		count = s.retries.count
-	)
+	count := s.retries.count
 
 RETRY:
-	scanner, err2 := s.m.Tx(opts, f)
-	if err2 != nil {
+	scanner, err := s.m.Tx(opts, f)
+	if err != nil {
 		time.Sleep(s.retries.interval)
-		err = fmt.Errorf("%s: %w", err, err2)
-		count--
 
+		count--
 		if count > 0 {
 			goto RETRY
 		}
 
-		return nil, err
+		return nil, fmt.Errorf("executing tx with retries: %w", err)
 	}
 
 	return scanner, nil
