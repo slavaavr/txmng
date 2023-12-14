@@ -1,6 +1,8 @@
 package txmng
 
-import "time"
+import (
+	"time"
+)
 
 type Option func(cfg *Config)
 
@@ -12,6 +14,7 @@ type Config struct {
 type retries struct {
 	count    int
 	interval time.Duration
+	need     func(error) bool
 }
 
 func WithForbidRawDB(v bool) Option {
@@ -21,13 +24,15 @@ func WithForbidRawDB(v bool) Option {
 }
 
 func WithRetries(
-	retriesCount int,
-	retriesInterval time.Duration,
+	retryCount int,
+	retryInterval time.Duration,
+	retryNeed func(error) bool,
 ) Option {
 	return func(cfg *Config) {
 		cfg.retries = &retries{
-			count:    retriesCount,
-			interval: retriesInterval,
+			count:    retryCount,
+			interval: retryInterval,
+			need:     retryNeed,
 		}
 	}
 }

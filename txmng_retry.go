@@ -24,10 +24,9 @@ func (s *txManagerWithReties) Tx(opts Opts, f func(ctx context.Context) (Scanner
 RETRY:
 	scanner, err := s.m.Tx(opts, f)
 	if err != nil {
-		time.Sleep(s.retries.interval)
-
 		count--
-		if count > 0 {
+		if count > 0 && s.retryNeeded(err) {
+			time.Sleep(s.retries.interval)
 			goto RETRY
 		}
 
@@ -35,4 +34,8 @@ RETRY:
 	}
 
 	return scanner, nil
+}
+
+func (s *txManagerWithReties) retryNeeded(err error) bool {
+	return s.retries.need != nil && s.retries.need(err)
 }
