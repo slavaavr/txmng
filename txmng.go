@@ -41,7 +41,7 @@ func New(p DBProvider, opts ...Option) (txm TxManager, dbm DBManager) {
 
 	txm, dbm = m, m
 	if m.cfg.retries != nil {
-		txm = newTxManagerWithReties(txm, *m.cfg.retries)
+		txm = newTxManagerWithRetries(txm, *m.cfg.retries)
 	}
 
 	return txm, dbm

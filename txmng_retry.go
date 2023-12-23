@@ -6,19 +6,19 @@ import (
 	"time"
 )
 
-type txManagerWithReties struct {
+type txManagerWithRetries struct {
 	m       TxManager
 	retries retries
 }
 
-func newTxManagerWithReties(m TxManager, r retries) TxManager {
-	return &txManagerWithReties{
+func newTxManagerWithRetries(m TxManager, r retries) TxManager {
+	return &txManagerWithRetries{
 		m:       m,
 		retries: r,
 	}
 }
 
-func (s *txManagerWithReties) Tx(opts Opts, f func(ctx context.Context) (Scanner, error)) (Scanner, error) {
+func (s *txManagerWithRetries) Tx(opts Opts, f func(ctx context.Context) (Scanner, error)) (Scanner, error) {
 	count := s.retries.count
 
 RETRY:
@@ -36,6 +36,6 @@ RETRY:
 	return scanner, nil
 }
 
-func (s *txManagerWithReties) retryNeeded(err error) bool {
+func (s *txManagerWithRetries) retryNeeded(err error) bool {
 	return s.retries.need != nil && s.retries.need(err)
 }
