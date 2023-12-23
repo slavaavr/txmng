@@ -36,3 +36,16 @@ func WithRetries(
 		}
 	}
 }
+
+func WithDefaultRetries(
+	retryCount int,
+	retryInterval time.Duration,
+) Option {
+	return func(cfg *Config) {
+		cfg.retries = &retries{
+			count:    retryCount,
+			interval: retryInterval,
+			need:     isPGXSerializationError,
+		}
+	}
+}
