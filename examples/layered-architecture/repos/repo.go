@@ -7,8 +7,8 @@ import (
 )
 
 type SomeRepo interface {
-	Do1(ctx context.Context) error
-	Do2(ctx context.Context) error
+	Do1(ctx txmng.Context) error
+	Do2(ctx txmng.Context) error
 }
 
 type someRepo struct {
@@ -21,7 +21,20 @@ func NewSomeRepo(dbm txmng.DBManager) SomeRepo {
 	}
 }
 
-func (r *someRepo) Do1(ctx context.Context) error {
+func (r *someRepo) Do1(ctx txmng.Context) error {
+	db, err := r.dbm.GetDB(ctx)
+	if err != nil {
+		return err
+	}
+
+	// do some work with db
+	_ = db
+	foo(ctx)
+
+	return nil
+}
+
+func (r *someRepo) Do2(ctx txmng.Context) error {
 	db, err := r.dbm.GetDB(ctx)
 	if err != nil {
 		return err
@@ -33,14 +46,4 @@ func (r *someRepo) Do1(ctx context.Context) error {
 	return nil
 }
 
-func (r *someRepo) Do2(ctx context.Context) error {
-	db, err := r.dbm.GetDB(ctx)
-	if err != nil {
-		return err
-	}
-
-	// do some work with db
-	_ = db
-
-	return nil
-}
+func foo(ctx context.Context) {}

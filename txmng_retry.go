@@ -1,7 +1,6 @@
 package txmng
 
 import (
-	"context"
 	"fmt"
 	"time"
 )
@@ -18,7 +17,7 @@ func newTxManagerWithRetries(m TxManager, r retries) TxManager {
 	}
 }
 
-func (s *txManagerWithRetries) Tx(opts Opts, f func(ctx context.Context) (Scanner, error)) (Scanner, error) {
+func (s *txManagerWithRetries) Tx(opts Opts, f func(ctx Context) (Scanner, error)) (Scanner, error) {
 	count := s.retries.count
 
 RETRY:

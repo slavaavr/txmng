@@ -10,14 +10,14 @@ import (
 
 //go:generate mockgen -source=./txmng.go -destination=./txmng_mock.go -package txmng
 
-// TxManager creates a db connection under the hood, and pass it through a context.
+// TxManager creates a db connection under the hood and passes it through a context.
 // On the other hand, users of DBManager should use this context to get the DB.
 type TxManager interface {
-	Tx(opts Opts, f func(ctx context.Context) (Scanner, error)) (Scanner, error)
+	Tx(opts Opts, f func(ctx Context) (Scanner, error)) (Scanner, error)
 }
 
 type DBManager interface {
-	GetDB(ctx context.Context) (DB, error)
+	GetDB(ctx Context) (DB, error)
 }
 
 type txManager struct {
@@ -47,9 +47,7 @@ func New(p DBProvider, opts ...Option) (txm TxManager, dbm DBManager) {
 	return txm, dbm
 }
 
-type txKey struct{}
-
-func (s *txManager) Tx(opts Opts, f func(ctx context.Context) (Scanner, error)) (Scanner, error) {
+func (s *txManager) Tx(opts Opts, f func(ctx Context) (Scanner, error)) (Scanner, error) {
 	if opts.Ctx == nil {
 		opts.Ctx = context.Background()
 	}
@@ -60,7 +58,7 @@ func (s *txManager) Tx(opts Opts, f func(ctx context.Context) (Scanner, error)) 
 	}
 
 	txID := atomic.AddInt64(&s.sequence, 1)
-	ctx := context.WithValue(opts.Ctx, txKey{}, txID)
+	ctx := newContext(opts.Ctx, txID)
 
 	s.dbs.Store(txID, db)
 	defer s.dbs.Delete(txID)
@@ -81,8 +79,8 @@ func (s *txManager) Tx(opts Opts, f func(ctx context.Context) (Scanner, error)) 
 	return scanner, nil
 }
 
-func (s *txManager) GetDB(ctx context.Context) (DB, error) {
-	txID, ok := ctx.Value(txKey{}).(int64)
+func (s *txManager) GetDB(ctx Context) (DB, error) {
+	txID, ok := ctx.getTxID()
 	if !ok {
 		if s.cfg.forbidRawDB {
 			return nil, errors.New("raw db is forbidden")
