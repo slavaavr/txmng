@@ -6,18 +6,18 @@ import (
 )
 
 type Scanner interface {
-	Scan(args ...interface{}) error
+	Scan(args ...any) error
 }
 
 type values struct {
-	vals []interface{}
+	vals []any
 }
 
-func Values(args ...interface{}) Scanner {
+func Values(args ...any) Scanner {
 	return values{vals: args}
 }
 
-func (v values) Scan(args ...interface{}) error {
+func (v values) Scan(args ...any) error {
 	l := len(v.vals)
 	if l != len(args) {
 		return fmt.Errorf("vals has length=%d, but args has %d", l, len(args))
@@ -30,7 +30,7 @@ func (v values) Scan(args ...interface{}) error {
 			continue
 		}
 
-		if tArg.Kind() != reflect.Ptr {
+		if tArg.Kind() != reflect.Pointer {
 			return fmt.Errorf("arg %d is not a pointer", i)
 		}
 
@@ -87,7 +87,7 @@ func (v values) isValidArgKind(arg reflect.Kind) bool {
 		reflect.Complex128,
 		reflect.Array,
 		reflect.Map,
-		reflect.Ptr,
+		reflect.Pointer,
 		reflect.Slice,
 		reflect.String,
 		reflect.Struct:

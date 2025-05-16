@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/slavaavr/txmng"
-	"github.com/slavaavr/txmng/examples/layered-arch/repos"
+	"github.com/slavaavr/txmng/examples/layered-architecture/repos"
 )
 
 type SomeService interface {
@@ -34,7 +34,7 @@ func (s *someService) Do(ctx context.Context) (int, error) {
 		ReadOnly:  false,
 	}
 
-	scanner, err := s.txm.Tx(opts, func(ctx context.Context) (txmng.Scanner, error) {
+	scanner, err := s.txm.Tx(opts, func(ctx txmng.Context) (txmng.Scanner, error) {
 		if err := s.repo.Do1(ctx); err != nil {
 			return nil, fmt.Errorf("executing 1 query: %w", err)
 		}

@@ -40,7 +40,7 @@ func TestTxmng_Parallel(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, _ = txm.Tx(opts, func(ctx context.Context) (Scanner, error) {
+			_, _ = txm.Tx(opts, func(ctx Context) (Scanner, error) {
 				txID := ctx.Value(txKey{}).(int64)
 				assert.NotEmpty(t, txID, "txID not found")
 
