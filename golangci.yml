@@ -24,23 +24,6 @@ linters-settings:
     # report about assignment of errors to blank identifier: `num, _ := strconv.Atoi(numStr)`;
     # default is false: such cases aren't reported by default.
     check-blank: false
-  govet:
-    # report about shadowed variables
-    check-shadowing: true
-
-    # Obtain type information from installed (to $GOPATH/pkg) package files:
-    # golangci-lint will execute `go install -i` and `go test -i` for analyzed packages
-    # before analyzing them.
-    # By default this option is disabled and govet gets type information by loader from source code.
-    # Loading from source code is slow, but it's done only once for all linters.
-    # Go-installing of packages first time is much slower than loading them from source code,
-    # therefore this option is disabled by default.
-    # But repeated installation is fast in go >= 1.10 because of build caching.
-    # Enable this option only if all conditions are met:
-    #  1. you use only "fast" linters (--fast e.g.): no program loading occurs
-    #  2. you use go >= 1.10
-    #  3. you do repeated runs (false for CI) or cache $GOPATH/pkg or `go env GOCACHE` dir in CI.
-    use-installed-packages: false
   golint:
     # minimal confidence for issues, default is 0.8
     min-confidence: 0.8
@@ -143,13 +126,12 @@ linters:
     - bodyclose
     - unused
     - dogsled
-    - exportloopref
     - gochecknoinits
     - goconst
     - gocritic
     - gofmt
     - goimports
-    - gomnd
+    - mnd
     - gomodguard
     - goprintffuncname
     - govet
@@ -188,7 +170,7 @@ issues:
         - gocyclo
         - dupl
         - gosec
-        - gomnd
+        - mnd
   # List of regexps of issue texts to exclude, empty list by default.
   # But independently from this option we use default exclude patterns,
   # it can be disabled by `exclude-use-default: false`. To list all

@@ -93,8 +93,7 @@ func (v values) isValidArgKind(arg reflect.Kind) bool {
 		reflect.Struct:
 		return true
 
-	// Unacceptable
-	case reflect.Chan,
+	case reflect.Chan, // Unacceptable
 		reflect.Func,
 		reflect.Interface,
 		reflect.UnsafePointer,

@@ -1,12 +1,12 @@
 module github.com/slavaavr/txmng
 
-go 1.23.0
+go 1.23.3
 
 require (
 	github.com/doug-martin/goqu/v9 v9.19.0
 	github.com/go-jet/jet/v2 v2.13.0
 	github.com/golang/mock v1.6.0
-	github.com/jackc/pgx/v5 v5.7.4
+	github.com/jackc/pgx/v5 v5.7.5
 	github.com/stretchr/testify v1.10.0
 )
 

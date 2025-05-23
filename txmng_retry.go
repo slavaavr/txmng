@@ -17,6 +17,7 @@ func newTxManagerWithRetries(m TxManager, r retries) TxManager {
 	}
 }
 
+// nolint:wsl
 func (s *txManagerWithRetries) Tx(opts Opts, f func(ctx Context) (Scanner, error)) (Scanner, error) {
 	count := s.retries.count
 
