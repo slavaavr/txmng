@@ -11,7 +11,7 @@ $ go get -u github.com/slavaavr/txmng
 ```
 
 ### Usage
-See [examples](https://github.com/slavaavr/txmng/tree/main/examples) folder.
+See [examples](https://github.com/slavaavr/txmng/tree/main/internal/examples) folder.
 
 [ci-badge]:      https://github.com/slavaavr/txmng/actions/workflows/main.yaml/badge.svg
 [ci-runs]:       https://github.com/slavaavr/txmng/actions

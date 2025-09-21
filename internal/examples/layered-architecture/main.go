@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/slavaavr/txmng"
-	"github.com/slavaavr/txmng/examples/layered-architecture/repos"
-	"github.com/slavaavr/txmng/examples/layered-architecture/services"
+	"github.com/slavaavr/txmng/internal/examples/layered-architecture/repos"
+	"github.com/slavaavr/txmng/internal/examples/layered-architecture/services"
 )
 
 func main() {
