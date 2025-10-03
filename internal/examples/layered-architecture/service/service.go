@@ -1,11 +1,11 @@
-package services
+package service
 
 import (
 	"context"
 	"fmt"
 
 	"github.com/slavaavr/txmng"
-	"github.com/slavaavr/txmng/examples/layered-architecture/repos"
+	"github.com/slavaavr/txmng/internal/examples/layered-architecture/repo"
 )
 
 type SomeService interface {
@@ -14,12 +14,12 @@ type SomeService interface {
 
 type someService struct {
 	txm  txmng.TxManager
-	repo repos.SomeRepo
+	repo repo.SomeRepo
 }
 
 func NewSomeService(
 	txm txmng.TxManager,
-	repo repos.SomeRepo,
+	repo repo.SomeRepo,
 ) SomeService {
 	return &someService{
 		txm:  txm,

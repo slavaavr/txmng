@@ -1,4 +1,4 @@
-.PHONY: setup test lint
+.PHONY: setup test lint generate
 
 setup:
 	@which golangci-lint || go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
@@ -8,3 +8,6 @@ test:
 
 lint:
 	golangci-lint run -c golangci.yml ./...
+
+generate:
+	go generate ./...
