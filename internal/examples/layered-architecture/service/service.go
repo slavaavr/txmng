@@ -35,7 +35,7 @@ func (s *someService) Do(ctx context.Context) (int, error) {
 		Ext:       nil,
 	}
 
-	scanner, err := s.txm.Tx(opts, func(ctx txmng.Context) (txmng.Scanner, error) {
+	scanner, err := s.txm.RunTx(opts, func(ctx txmng.Context) (txmng.Scanner, error) {
 		if err := s.repo.Do1(ctx); err != nil {
 			return nil, fmt.Errorf("executing 1 query: %w", err)
 		}

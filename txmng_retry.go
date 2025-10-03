@@ -56,14 +56,14 @@ func newManagerWithRetries(m TxManager, r Retrier) TxManager {
 	}
 }
 
-func (s *managerWithRetries) Tx(opts Opts, f func(ctx Context) (Scanner, error)) (Scanner, error) {
+func (s *managerWithRetries) RunTx(opts Opts, f func(ctx Context) (Scanner, error)) (Scanner, error) {
 	var (
 		scanner Scanner
 		err     error
 	)
 
 	err = s.retrier.Do(func() error {
-		scanner, err = s.mng.Tx(opts, f)
+		scanner, err = s.mng.RunTx(opts, f)
 		if err != nil {
 			return err
 		}

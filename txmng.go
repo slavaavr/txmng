@@ -12,7 +12,7 @@ import (
 // TxManager creates a db connection under the hood and passes it through a context.
 // On the other hand, users of DBManager should use this context to get the DB.
 type TxManager interface {
-	Tx(opts Opts, f func(ctx Context) (Scanner, error)) (Scanner, error)
+	RunTx(opts Opts, f func(ctx Context) (Scanner, error)) (Scanner, error)
 }
 
 type DBManager[T any] interface {
@@ -46,7 +46,7 @@ func New[T any](p DBProvider[T], opts ...Option) (txm TxManager, dbm DBManager[T
 	return txm, dbm
 }
 
-func (s *manager[T]) Tx(opts Opts, f func(ctx Context) (Scanner, error)) (_ Scanner, err error) {
+func (s *manager[T]) RunTx(opts Opts, f func(ctx Context) (Scanner, error)) (_ Scanner, err error) {
 	if opts.Ctx == nil {
 		opts.Ctx = context.Background()
 	}

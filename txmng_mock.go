@@ -39,19 +39,19 @@ func (m *MockTxManager) EXPECT() *MockTxManagerMockRecorder {
 	return m.recorder
 }
 
-// Tx mocks base method.
-func (m *MockTxManager) Tx(opts Opts, f func(Context) (Scanner, error)) (Scanner, error) {
+// RunTx mocks base method.
+func (m *MockTxManager) RunTx(opts Opts, f func(Context) (Scanner, error)) (Scanner, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Tx", opts, f)
+	ret := m.ctrl.Call(m, "RunTx", opts, f)
 	ret0, _ := ret[0].(Scanner)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Tx indicates an expected call of Tx.
-func (mr *MockTxManagerMockRecorder) Tx(opts, f any) *gomock.Call {
+// RunTx indicates an expected call of RunTx.
+func (mr *MockTxManagerMockRecorder) RunTx(opts, f any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Tx", reflect.TypeOf((*MockTxManager)(nil).Tx), opts, f)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunTx", reflect.TypeOf((*MockTxManager)(nil).RunTx), opts, f)
 }
 
 // MockDBManager is a mock of DBManager interface.
