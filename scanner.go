@@ -18,12 +18,12 @@ func Values(args ...any) Scanner {
 }
 
 func (v values) Scan(args ...any) error {
-	l := len(v.vals)
-	if l != len(args) {
-		return fmt.Errorf("vals has length=%d, but args has %d", l, len(args))
+	valsLen := len(v.vals)
+	if valsLen != len(args) {
+		return fmt.Errorf("vals has length=%d, but args has %d", valsLen, len(args))
 	}
 
-	for i := 0; i < l; i++ {
+	for i := 0; i < valsLen; i++ {
 		tArg := reflect.TypeOf(args[i])
 
 		if tArg == nil { // Scan(.., nil, ...)
@@ -67,38 +67,18 @@ func (v values) Scan(args ...any) error {
 	return nil
 }
 
-func (v values) isValidArgKind(arg reflect.Kind) bool {
-	switch arg {
-	case reflect.Bool,
-		reflect.Int,
-		reflect.Int8,
-		reflect.Int16,
-		reflect.Int32,
-		reflect.Int64,
-		reflect.Uint,
-		reflect.Uint8,
-		reflect.Uint16,
-		reflect.Uint32,
-		reflect.Uint64,
-		reflect.Uintptr,
-		reflect.Float32,
-		reflect.Float64,
-		reflect.Complex64,
-		reflect.Complex128,
-		reflect.Array,
-		reflect.Map,
-		reflect.Pointer,
-		reflect.Slice,
-		reflect.String,
-		reflect.Struct:
-		return true
+var invalidArgKinds = map[reflect.Kind]struct{}{
+	reflect.Chan:          {},
+	reflect.Func:          {},
+	reflect.Interface:     {},
+	reflect.UnsafePointer: {},
+	reflect.Invalid:       {},
+}
 
-	case reflect.Chan, // Unacceptable
-		reflect.Func,
-		reflect.Interface,
-		reflect.UnsafePointer,
-		reflect.Invalid:
+func (v values) isValidArgKind(arg reflect.Kind) bool {
+	if _, ok := invalidArgKinds[arg]; ok {
+		return false
 	}
 
-	return false
+	return true
 }

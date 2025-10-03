@@ -1,51 +1,31 @@
 package txmng
 
-import (
-	"time"
-)
+import "time"
 
 type Option func(cfg *Config)
 
 type Config struct {
-	forbidRawDB bool
-	retries     *retries
+	retrier Retrier
 }
 
-type retries struct {
-	count    int
-	interval time.Duration
-	need     func(error) bool
+func WithRetrier(r Retrier) Option {
+	return func(cfg *Config) { cfg.retrier = r }
 }
 
-func WithForbidRawDB(v bool) Option {
+func WithDefaultRetrier() Option {
 	return func(cfg *Config) {
-		cfg.forbidRawDB = v
+		cfg.retrier = newDefaultRetrier(
+			[]time.Duration{
+				100 * time.Millisecond,
+				250 * time.Millisecond,
+				500 * time.Millisecond,
+			},
+		)
 	}
 }
 
-func WithRetries(
-	retryCount int,
-	retryInterval time.Duration,
-	retryNeed func(error) bool,
-) Option {
+func WithDefaultRetrierDelays(delays []time.Duration) Option {
 	return func(cfg *Config) {
-		cfg.retries = &retries{
-			count:    retryCount,
-			interval: retryInterval,
-			need:     retryNeed,
-		}
-	}
-}
-
-func WithDefaultRetries(
-	retryCount int,
-	retryInterval time.Duration,
-) Option {
-	return func(cfg *Config) {
-		cfg.retries = &retries{
-			count:    retryCount,
-			interval: retryInterval,
-			need:     isPGXSerializationError,
-		}
+		cfg.retrier = newDefaultRetrier(delays)
 	}
 }

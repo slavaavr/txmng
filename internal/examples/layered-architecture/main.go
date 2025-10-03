@@ -2,31 +2,42 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
+	"os/signal"
+	"syscall"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/slavaavr/txmng"
-	"github.com/slavaavr/txmng/internal/examples/layered-architecture/repos"
-	"github.com/slavaavr/txmng/internal/examples/layered-architecture/services"
+	"github.com/slavaavr/txmng/internal/examples/layered-architecture/repo"
+	"github.com/slavaavr/txmng/internal/examples/layered-architecture/service"
 )
 
 func main() {
-	var connectString = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		"localhost", "5432", "user", "12345678", "test")
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGHUP, syscall.SIGINT, syscall.SIGQUIT)
+	defer cancel()
 
-	db, err := sql.Open("postgres", connectString)
+	var connString = fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		"localhost", "5432", "user", "12345678", "test",
+	)
+
+	cfg, err := pgx.ParseConfig(connString)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("parsing config: %w", err))
 	}
+
+	db := stdlib.OpenDB(*cfg)
 	defer db.Close()
 
-	dbProvider := txmng.NewDefaultSQLDBProvider(db)
-	txm, dbm := txmng.New(dbProvider)
+	dbProvider := txmng.NewSQLProvider(db)
+	txm, dbm := txmng.New(dbProvider, txmng.WithDefaultRetrier())
 
-	repo := repos.NewSomeRepo(dbm)
-	service := services.NewSomeService(txm, repo)
+	someRepo := repo.NewSomeRepo(dbm)
+	someService := service.NewSomeService(txm, someRepo)
 
-	res, err := service.Do(context.Background())
+	res, err := someService.Do(ctx)
 	if err != nil {
 		panic(err)
 	}

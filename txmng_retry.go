@@ -1,41 +1,78 @@
 package txmng
 
 import (
+	"errors"
 	"fmt"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
-type txManagerWithRetries struct {
-	m       TxManager
-	retries retries
+type Retrier interface {
+	Do(func() error) error
 }
 
-func newTxManagerWithRetries(m TxManager, r retries) TxManager {
-	return &txManagerWithRetries{
-		m:       m,
-		retries: r,
+type defaultRetrier struct {
+	retryDelays []time.Duration
+}
+
+func newDefaultRetrier(retryDelays []time.Duration) Retrier {
+	return &defaultRetrier{retryDelays: append(retryDelays, 0)}
+}
+
+func (s *defaultRetrier) Do(f func() error) error {
+	var err error
+
+	for i := 0; i < len(s.retryDelays); i++ {
+		if err = f(); err != nil && s.isSerializationError(err) {
+			time.Sleep(s.retryDelays[i])
+			continue
+		}
+
+		break
+	}
+
+	return err
+}
+
+func (s *defaultRetrier) isSerializationError(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "40001" || pgErr.Code == "40P01"
+	}
+
+	return false
+}
+
+type managerWithRetries struct {
+	mng     TxManager
+	retrier Retrier
+}
+
+func newManagerWithRetries(m TxManager, r Retrier) TxManager {
+	return &managerWithRetries{
+		mng:     m,
+		retrier: r,
 	}
 }
 
-// nolint:wsl
-func (s *txManagerWithRetries) Tx(opts Opts, f func(ctx Context) (Scanner, error)) (Scanner, error) {
-	count := s.retries.count
+func (s *managerWithRetries) RunTx(opts Opts, f func(ctx Context) (Scanner, error)) (Scanner, error) {
+	var (
+		scanner Scanner
+		err     error
+	)
 
-RETRY:
-	scanner, err := s.m.Tx(opts, f)
-	if err != nil {
-		count--
-		if count > 0 && s.retryNeeded(err) {
-			time.Sleep(s.retries.interval)
-			goto RETRY
+	err = s.retrier.Do(func() error {
+		scanner, err = s.mng.RunTx(opts, f)
+		if err != nil {
+			return err
 		}
 
-		return nil, fmt.Errorf("executing tx with retries: %w", err)
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("running tx with retries: %w", err)
 	}
 
 	return scanner, nil
-}
-
-func (s *txManagerWithRetries) retryNeeded(err error) bool {
-	return s.retries.need != nil && s.retries.need(err)
 }
