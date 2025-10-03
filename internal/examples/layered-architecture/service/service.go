@@ -32,6 +32,7 @@ func (s *someService) Do(ctx context.Context) (int, error) {
 		Ctx:       ctx,
 		Isolation: txmng.LevelDefault,
 		ReadOnly:  false,
+		Ext:       nil,
 	}
 
 	scanner, err := s.txm.Tx(opts, func(ctx txmng.Context) (txmng.Scanner, error) {

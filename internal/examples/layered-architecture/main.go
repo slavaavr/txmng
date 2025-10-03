@@ -32,7 +32,7 @@ func main() {
 	defer db.Close()
 
 	dbProvider := txmng.NewSQLProvider(db)
-	txm, dbm := txmng.New(dbProvider)
+	txm, dbm := txmng.New(dbProvider, txmng.WithDefaultRetrier())
 
 	someRepo := repo.NewSomeRepo(dbm)
 	someService := service.NewSomeService(txm, someRepo)
