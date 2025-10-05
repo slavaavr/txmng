@@ -10,6 +10,7 @@
 package txmng
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "go.uber.org/mock/gomock"
@@ -39,19 +40,34 @@ func (m *MockTxManager) EXPECT() *MockTxManagerMockRecorder {
 	return m.recorder
 }
 
-// RunTx mocks base method.
+// WithTx mocks base method.
 func (m *MockTxManager) RunTx(opts Opts, f func(Context) (Scanner, error)) (Scanner, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RunTx", opts, f)
+	ret := m.ctrl.Call(m, "WithTx", opts, f)
 	ret0, _ := ret[0].(Scanner)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// RunTx indicates an expected call of RunTx.
-func (mr *MockTxManagerMockRecorder) RunTx(opts, f any) *gomock.Call {
+// WithTx indicates an expected call of WithTx.
+func (mr *MockTxManagerMockRecorder) WithTx(opts, f any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunTx", reflect.TypeOf((*MockTxManager)(nil).RunTx), opts, f)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithTx", reflect.TypeOf((*MockTxManager)(nil).RunTx), opts, f)
+}
+
+// WithoutTx mocks base method.
+func (m *MockTxManager) RunNoTx(ctx context.Context, f func(Context) (Scanner, error)) (Scanner, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WithoutTx", ctx, f)
+	ret0, _ := ret[0].(Scanner)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WithoutTx indicates an expected call of WithoutTx.
+func (mr *MockTxManagerMockRecorder) WithoutTx(ctx, f any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithoutTx", reflect.TypeOf((*MockTxManager)(nil).RunNoTx), ctx, f)
 }
 
 // MockDBManager is a mock of DBManager interface.

@@ -19,8 +19,8 @@ type pgxProvider struct {
 	db    *pgxpool.Pool
 	rawDB Tx[PGX]
 
-	deferrableModesMap map[DeferrableMode]pgx.TxDeferrableMode
 	isoLevelsMap       map[IsolationLevel]pgx.TxIsoLevel
+	deferrableModesMap map[bool]pgx.TxDeferrableMode
 	accessModesMap     map[bool]pgx.TxAccessMode
 }
 
@@ -44,10 +44,6 @@ func NewPGXProvider(db *pgxpool.Pool) DBProvider[PGX] {
 			func(ctx context.Context) error { return ErrCommitNotSupported },
 			func(ctx context.Context) error { return ErrRollbackNotSupported },
 		),
-		deferrableModesMap: map[DeferrableMode]pgx.TxDeferrableMode{
-			Deferrable:    pgx.Deferrable,
-			NotDeferrable: pgx.NotDeferrable,
-		},
 		isoLevelsMap: map[IsolationLevel]pgx.TxIsoLevel{
 			LevelDefault:         "",
 			LevelReadUncommitted: pgx.ReadUncommitted,
@@ -57,6 +53,10 @@ func NewPGXProvider(db *pgxpool.Pool) DBProvider[PGX] {
 			LevelSnapshot:        pgx.Serializable,
 			LevelSerializable:    pgx.Serializable,
 			LevelLinearizable:    pgx.Serializable,
+		},
+		deferrableModesMap: map[bool]pgx.TxDeferrableMode{
+			true:  pgx.Deferrable,
+			false: "",
 		},
 		accessModesMap: map[bool]pgx.TxAccessMode{
 			true:  pgx.ReadOnly,

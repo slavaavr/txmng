@@ -13,6 +13,7 @@ import (
 // On the other hand, users of DBManager should use this context to get the DB.
 type TxManager interface {
 	RunTx(opts Opts, f func(ctx Context) (Scanner, error)) (Scanner, error)
+	RunNoTx(ctx context.Context, f func(ctx Context) (Scanner, error)) (Scanner, error)
 }
 
 type DBManager[T any] interface {
@@ -56,8 +57,7 @@ func (s *manager[T]) RunTx(opts Opts, f func(ctx Context) (Scanner, error)) (_ S
 		return nil, fmt.Errorf("beginning tx: %w", err)
 	}
 
-	txID := atomic.AddInt64(&s.sequence, 1)
-	ctx := newContext(opts.Ctx, txID)
+	txID := s.nextTxID()
 
 	s.dbs.Store(txID, tx.GetDB())
 	defer func() {
@@ -74,7 +74,7 @@ func (s *manager[T]) RunTx(opts Opts, f func(ctx Context) (Scanner, error)) (_ S
 		s.dbs.Delete(txID)
 	}()
 
-	scanner, err := f(ctx)
+	scanner, err := f(newContext(opts.Ctx, txID))
 	if err != nil {
 		return scanner, err
 	}
@@ -86,29 +86,49 @@ func (s *manager[T]) RunTx(opts Opts, f func(ctx Context) (Scanner, error)) (_ S
 	return scanner, nil
 }
 
-func (s *manager[T]) GetDB(ctx Context) (T, error) {
-	txID, ok := ctx.getTxID()
-	if !ok {
-		tx, err := s.dbProvider.BeginTx(Opts{
-			Ctx:      ctx,
-			useRawDB: true,
-		})
-		if err != nil {
-			return empty[T](), fmt.Errorf("beginning raw db: %w", err)
+func (s *manager[T]) RunNoTx(ctx context.Context, f func(ctx Context) (Scanner, error)) (_ Scanner, err error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	tx, err := s.dbProvider.BeginTx(Opts{
+		Ctx:      ctx,
+		useRawDB: true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("beginning raw db: %w", err)
+	}
+
+	txID := s.nextTxID()
+
+	s.dbs.Store(txID, tx.GetDB())
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic: %v", r)
 		}
 
-		return tx.GetDB(), nil
-	}
+		s.dbs.Delete(txID)
+	}()
+
+	return f(newContext(ctx, txID))
+}
+
+func (s *manager[T]) GetDB(ctx Context) (T, error) {
+	txID := ctx.getTxID()
 
 	v, ok := s.dbs.Load(txID)
 	if !ok {
-		return empty[T](), fmt.Errorf("db not found with txID='%d'", txID)
+		return s.empty(), fmt.Errorf("unexpected error: db not found with txID='%d'", txID)
 	}
 
 	return v.(T), nil
 }
 
-func empty[T any]() T {
+func (s *manager[T]) nextTxID() int64 {
+	return atomic.AddInt64(&s.sequence, 1)
+}
+
+func (s *manager[T]) empty() T {
 	var t T
 	return t
 }

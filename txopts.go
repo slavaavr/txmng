@@ -14,15 +14,8 @@ type Opts struct {
 	useRawDB bool
 }
 
-type DeferrableMode int
-
-const (
-	Deferrable DeferrableMode = iota
-	NotDeferrable
-)
-
 type DefaultOptsExt struct {
-	DeferrableMode DeferrableMode
+	DeferrableMode bool
 	BeginQuery     string
 	CommitQuery    string
 }

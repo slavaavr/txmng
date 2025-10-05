@@ -1,6 +1,7 @@
 package txmng
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -57,13 +58,21 @@ func newManagerWithRetries(m TxManager, r Retrier) TxManager {
 }
 
 func (s *managerWithRetries) RunTx(opts Opts, f func(ctx Context) (Scanner, error)) (Scanner, error) {
+	return s.run(func() (Scanner, error) { return s.mng.RunTx(opts, f) })
+}
+
+func (s *managerWithRetries) RunNoTx(ctx context.Context, f func(ctx Context) (Scanner, error)) (Scanner, error) {
+	return s.run(func() (Scanner, error) { return s.mng.RunNoTx(ctx, f) })
+}
+
+func (s *managerWithRetries) run(f func() (Scanner, error)) (Scanner, error) {
 	var (
 		scanner Scanner
 		err     error
 	)
 
 	err = s.retrier.Do(func() error {
-		scanner, err = s.mng.RunTx(opts, f)
+		scanner, err = f()
 		if err != nil {
 			return err
 		}
