@@ -41,15 +41,6 @@ func (s *defaultRetrier) needRetry(err error) bool {
 	return s.isNetworkError(err) || s.isSerializationError(err)
 }
 
-func (s *defaultRetrier) isSerializationError(err error) bool {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		return pgErr.Code == "40001" || pgErr.Code == "40P01"
-	}
-
-	return false
-}
-
 func (s *defaultRetrier) isNetworkError(err error) bool {
 	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) {
 		return true
@@ -63,6 +54,15 @@ func (s *defaultRetrier) isNetworkError(err error) bool {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		return pgErr.Code == "08000" || pgErr.Code == "08003" || pgErr.Code == "08006"
+	}
+
+	return false
+}
+
+func (s *defaultRetrier) isSerializationError(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "40001" || pgErr.Code == "40P01"
 	}
 
 	return false
