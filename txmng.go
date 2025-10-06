@@ -22,7 +22,6 @@ type DBManager[T any] interface {
 
 type manager[T any] struct {
 	dbProvider DBProvider[T]
-	cfg        Config
 
 	dbs      sync.Map
 	sequence int64
@@ -36,12 +35,11 @@ func New[T any](p DBProvider[T], opts ...Option) (txm TxManager, dbm DBManager[T
 
 	m := &manager[T]{
 		dbProvider: p,
-		cfg:        cfg,
 	}
 
 	txm, dbm = m, m
-	if m.cfg.retrier != nil {
-		txm = newManagerWithRetrier(txm, m.cfg.retrier)
+	if cfg.retrier != nil {
+		txm = newManagerWithRetrier(txm, cfg.retrier)
 	}
 
 	return txm, dbm
