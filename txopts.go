@@ -5,23 +5,22 @@ import (
 	"database/sql"
 )
 
-type Opts struct {
+type TxOpts struct {
 	Ctx       context.Context
 	Isolation IsolationLevel
 	ReadOnly  bool
 	Ext       any
-
-	useRawDB bool
 }
 
-type DefaultOptsExt struct {
+type TxOptsExt struct {
 	DeferrableMode bool
 	BeginQuery     string
 	CommitQuery    string
 }
 
-func (t Opts) UseRawDB() bool {
-	return t.useRawDB
+type NoTxOpts struct {
+	Ctx context.Context
+	Ext any
 }
 
 type IsolationLevel int

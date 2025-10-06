@@ -37,7 +37,7 @@ func TestTxmng_Parallel(t *testing.T) {
 	wg := sync.WaitGroup{}
 
 	txm, dbm := New(p)
-	opts := Opts{
+	opts := TxOpts{
 		Ctx:       context.Background(),
 		Isolation: LevelDefault,
 		ReadOnly:  false,
@@ -50,15 +50,14 @@ func TestTxmng_Parallel(t *testing.T) {
 			defer wg.Done()
 
 			_, _ = txm.RunTx(opts, func(ctx Context) (Scanner, error) {
-				txID := ctx.Value(txKey{}).(int64)
+				txID := ctx.Value(idKey{}).(int64)
 				assert.NotEmpty(t, txID, "txID not found")
 
 				_, ok := mem.Load(txID)
 				assert.Empty(t, ok, "txID already exists within mem -> duplicate of txID")
 				mem.Store(txID, struct{}{})
 
-				db, err := dbm.GetDB(ctx)
-				assert.NoError(t, err, "no error should be provided")
+				db := dbm.GetDB(ctx)
 				assert.NotEmpty(t, db, "db should exist")
 
 				return nil, nil

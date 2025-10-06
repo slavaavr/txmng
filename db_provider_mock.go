@@ -107,7 +107,7 @@ func (m *MockDBProvider[T]) EXPECT() *MockDBProviderMockRecorder[T] {
 }
 
 // BeginTx mocks base method.
-func (m *MockDBProvider[T]) BeginTx(opts Opts) (Tx[T], error) {
+func (m *MockDBProvider[T]) BeginTx(opts TxOpts) (Tx[T], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BeginTx", opts)
 	ret0, _ := ret[0].(Tx[T])
@@ -119,4 +119,18 @@ func (m *MockDBProvider[T]) BeginTx(opts Opts) (Tx[T], error) {
 func (mr *MockDBProviderMockRecorder[T]) BeginTx(opts any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeginTx", reflect.TypeOf((*MockDBProvider[T])(nil).BeginTx), opts)
+}
+
+// GetDB mocks base method.
+func (m *MockDBProvider[T]) GetDB(opts NoTxOpts) T {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDB", opts)
+	ret0, _ := ret[0].(T)
+	return ret0
+}
+
+// GetDB indicates an expected call of GetDB.
+func (mr *MockDBProviderMockRecorder[T]) GetDB(opts any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDB", reflect.TypeOf((*MockDBProvider[T])(nil).GetDB), opts)
 }

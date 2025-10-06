@@ -1,9 +1,10 @@
 package txmng
 
 import (
-	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -21,11 +22,11 @@ func newDefaultRetrier(retryDelays []time.Duration) Retrier {
 	return &defaultRetrier{retryDelays: append(retryDelays, 0)}
 }
 
-func (s *defaultRetrier) Do(f func() error) error {
+func (s *defaultRetrier) Do(fn func() error) error {
 	var err error
 
 	for i := 0; i < len(s.retryDelays); i++ {
-		if err = f(); err != nil && s.isSerializationError(err) {
+		if err = fn(); err != nil && s.needRetry(err) {
 			time.Sleep(s.retryDelays[i])
 			continue
 		}
@@ -34,6 +35,10 @@ func (s *defaultRetrier) Do(f func() error) error {
 	}
 
 	return err
+}
+
+func (s *defaultRetrier) needRetry(err error) bool {
+	return s.isNetworkError(err) || s.isSerializationError(err)
 }
 
 func (s *defaultRetrier) isSerializationError(err error) bool {
@@ -45,34 +50,52 @@ func (s *defaultRetrier) isSerializationError(err error) bool {
 	return false
 }
 
-type managerWithRetries struct {
+func (s *defaultRetrier) isNetworkError(err error) bool {
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) {
+		return true
+	}
+
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "08000" || pgErr.Code == "08003" || pgErr.Code == "08006"
+	}
+
+	return false
+}
+
+type managerWithRetrier struct {
 	mng     TxManager
 	retrier Retrier
 }
 
-func newManagerWithRetries(m TxManager, r Retrier) TxManager {
-	return &managerWithRetries{
+func newManagerWithRetrier(m TxManager, r Retrier) TxManager {
+	return &managerWithRetrier{
 		mng:     m,
 		retrier: r,
 	}
 }
 
-func (s *managerWithRetries) RunTx(opts Opts, f func(ctx Context) (Scanner, error)) (Scanner, error) {
-	return s.run(func() (Scanner, error) { return s.mng.RunTx(opts, f) })
+func (s *managerWithRetrier) RunTx(opts TxOpts, fn func(ctx Context) (Scanner, error)) (Scanner, error) {
+	return s.run(func() (Scanner, error) { return s.mng.RunTx(opts, fn) })
 }
 
-func (s *managerWithRetries) RunNoTx(ctx context.Context, f func(ctx Context) (Scanner, error)) (Scanner, error) {
-	return s.run(func() (Scanner, error) { return s.mng.RunNoTx(ctx, f) })
+func (s *managerWithRetrier) RunNoTx(opts NoTxOpts, fn func(ctx Context) (Scanner, error)) (Scanner, error) {
+	return s.run(func() (Scanner, error) { return s.mng.RunNoTx(opts, fn) })
 }
 
-func (s *managerWithRetries) run(f func() (Scanner, error)) (Scanner, error) {
+func (s *managerWithRetrier) run(fn func() (Scanner, error)) (Scanner, error) {
 	var (
 		scanner Scanner
 		err     error
 	)
 
 	err = s.retrier.Do(func() error {
-		scanner, err = f()
+		scanner, err = fn()
 		if err != nil {
 			return err
 		}
@@ -80,7 +103,7 @@ func (s *managerWithRetries) run(f func() (Scanner, error)) (Scanner, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("running tx with retries: %w", err)
+		return nil, fmt.Errorf("running tx with retrier: %w", err)
 	}
 
 	return scanner, nil

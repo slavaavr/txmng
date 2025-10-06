@@ -28,7 +28,7 @@ func NewSomeService(
 }
 
 func (s *someService) Do(ctx context.Context) (int, error) {
-	opts := txmng.Opts{
+	opts := txmng.TxOpts{
 		Ctx:       ctx,
 		Isolation: txmng.LevelDefault,
 		ReadOnly:  false,

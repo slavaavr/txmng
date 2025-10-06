@@ -19,7 +19,8 @@ type Tx[T any] interface {
 }
 
 type DBProvider[T any] interface {
-	BeginTx(opts Opts) (Tx[T], error)
+	BeginTx(opts TxOpts) (Tx[T], error)
+	GetDB(opts NoTxOpts) T
 }
 
 type txImpl[T any] struct {

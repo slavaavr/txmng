@@ -20,10 +20,7 @@ func NewSomeRepo(dbm txmng.DBManager[txmng.StdSQL]) SomeRepo {
 }
 
 func (r *someRepo) Do1(ctx txmng.Context) error {
-	db, err := r.dbm.GetDB(ctx)
-	if err != nil {
-		return err
-	}
+	db := r.dbm.GetDB(ctx)
 
 	// do some work with db
 	_ = db
@@ -32,10 +29,7 @@ func (r *someRepo) Do1(ctx txmng.Context) error {
 }
 
 func (r *someRepo) Do2(ctx txmng.Context) error {
-	db, err := r.dbm.GetDB(ctx)
-	if err != nil {
-		return err
-	}
+	db := r.dbm.GetDB(ctx)
 
 	// do some work with db
 	_ = db

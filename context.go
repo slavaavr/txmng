@@ -4,21 +4,21 @@ import "context"
 
 type Context interface {
 	context.Context
-	getTxID() int64
+	getID() int64
 }
 
-type txKey struct{}
+type idKey struct{}
 
 type contextImpl struct {
 	context.Context
 }
 
-func newContext(ctx context.Context, txID int64) Context {
+func newContext(ctx context.Context, id int64) Context {
 	return contextImpl{
-		Context: context.WithValue(ctx, txKey{}, txID),
+		Context: context.WithValue(ctx, idKey{}, id),
 	}
 }
 
-func (ctx contextImpl) getTxID() int64 {
-	return ctx.Value(txKey{}).(int64)
+func (ctx contextImpl) getID() int64 {
+	return ctx.Value(idKey{}).(int64)
 }

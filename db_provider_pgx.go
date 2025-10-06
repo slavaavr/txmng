@@ -17,33 +17,29 @@ type PGX interface {
 
 type pgxProvider struct {
 	db    *pgxpool.Pool
-	rawDB Tx[PGX]
+	rawDB PGX
 
 	isoLevelsMap       map[IsolationLevel]pgx.TxIsoLevel
 	deferrableModesMap map[bool]pgx.TxDeferrableMode
 	accessModesMap     map[bool]pgx.TxAccessMode
 }
 
-type rawPGXAdapter struct {
+type pgxAdapter struct {
 	*pgxpool.Pool
 }
 
-func (s *rawPGXAdapter) Commit(ctx context.Context) error   { return ErrCommitNotSupported }
-func (s *rawPGXAdapter) Rollback(ctx context.Context) error { return ErrRollbackNotSupported }
-func (s *rawPGXAdapter) LargeObjects() pgx.LargeObjects     { return pgx.LargeObjects{} }
-func (s *rawPGXAdapter) Conn() *pgx.Conn                    { return nil }
-func (s *rawPGXAdapter) Prepare(ctx context.Context, name, sql string) (*pgconn.StatementDescription, error) {
+func (s *pgxAdapter) Commit(ctx context.Context) error   { return ErrCommitNotSupported }
+func (s *pgxAdapter) Rollback(ctx context.Context) error { return ErrRollbackNotSupported }
+func (s *pgxAdapter) LargeObjects() pgx.LargeObjects     { return pgx.LargeObjects{} }
+func (s *pgxAdapter) Conn() *pgx.Conn                    { return nil }
+func (s *pgxAdapter) Prepare(ctx context.Context, name, sql string) (*pgconn.StatementDescription, error) {
 	return nil, errors.New("prepare statement is not supported")
 }
 
 func NewPGXProvider(db *pgxpool.Pool) DBProvider[PGX] {
 	return &pgxProvider{
-		db: db,
-		rawDB: newTx[PGX](
-			func() PGX { return &rawPGXAdapter{db} },
-			func(ctx context.Context) error { return ErrCommitNotSupported },
-			func(ctx context.Context) error { return ErrRollbackNotSupported },
-		),
+		db:    db,
+		rawDB: &pgxAdapter{db},
 		isoLevelsMap: map[IsolationLevel]pgx.TxIsoLevel{
 			LevelDefault:         "",
 			LevelReadUncommitted: pgx.ReadUncommitted,
@@ -65,11 +61,7 @@ func NewPGXProvider(db *pgxpool.Pool) DBProvider[PGX] {
 	}
 }
 
-func (s *pgxProvider) BeginTx(opts Opts) (Tx[PGX], error) {
-	if opts.UseRawDB() {
-		return s.rawDB, nil
-	}
-
+func (s *pgxProvider) BeginTx(opts TxOpts) (Tx[PGX], error) {
 	o := pgx.TxOptions{
 		IsoLevel:       s.isoLevelsMap[opts.Isolation],
 		AccessMode:     s.accessModesMap[opts.ReadOnly],
@@ -79,7 +71,7 @@ func (s *pgxProvider) BeginTx(opts Opts) (Tx[PGX], error) {
 	}
 
 	if opts.Ext != nil {
-		if ext, ok := opts.Ext.(DefaultOptsExt); ok {
+		if ext, ok := opts.Ext.(TxOptsExt); ok {
 			o.DeferrableMode = s.deferrableModesMap[ext.DeferrableMode]
 			o.BeginQuery = ext.BeginQuery
 			o.CommitQuery = ext.CommitQuery
@@ -97,3 +89,5 @@ func (s *pgxProvider) BeginTx(opts Opts) (Tx[PGX], error) {
 		func(ctx context.Context) error { return tx.Rollback(ctx) },
 	), nil
 }
+
+func (s *pgxProvider) GetDB(_ NoTxOpts) PGX { return s.rawDB }

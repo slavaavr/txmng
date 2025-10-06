@@ -18,32 +18,24 @@ type StdSQL interface {
 
 type sqlProvider struct {
 	db    *sql.DB
-	rawDB Tx[StdSQL]
+	rawDB StdSQL
 }
 
-type rawSqlAdapter struct {
+type sqlAdapter struct {
 	*sql.DB
 }
 
-func (s *rawSqlAdapter) Commit() error   { return ErrCommitNotSupported }
-func (s *rawSqlAdapter) Rollback() error { return ErrRollbackNotSupported }
+func (s *sqlAdapter) Commit() error   { return ErrCommitNotSupported }
+func (s *sqlAdapter) Rollback() error { return ErrRollbackNotSupported }
 
 func NewSQLProvider(db *sql.DB) DBProvider[StdSQL] {
 	return &sqlProvider{
-		db: db,
-		rawDB: newTx[StdSQL](
-			func() StdSQL { return &rawSqlAdapter{db} },
-			func(ctx context.Context) error { return ErrCommitNotSupported },
-			func(ctx context.Context) error { return ErrRollbackNotSupported },
-		),
+		db:    db,
+		rawDB: &sqlAdapter{db},
 	}
 }
 
-func (s *sqlProvider) BeginTx(opts Opts) (Tx[StdSQL], error) {
-	if opts.UseRawDB() {
-		return s.rawDB, nil
-	}
-
+func (s *sqlProvider) BeginTx(opts TxOpts) (Tx[StdSQL], error) {
 	tx, err := s.db.BeginTx(opts.Ctx, &sql.TxOptions{
 		Isolation: opts.Isolation.toSQL(),
 		ReadOnly:  opts.ReadOnly,
@@ -58,3 +50,5 @@ func (s *sqlProvider) BeginTx(opts Opts) (Tx[StdSQL], error) {
 		func(ctx context.Context) error { return tx.Rollback() },
 	), nil
 }
+
+func (s *sqlProvider) GetDB(_ NoTxOpts) StdSQL { return s.rawDB }

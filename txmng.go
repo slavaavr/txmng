@@ -12,12 +12,12 @@ import (
 // TxManager creates a db connection under the hood and passes it through a context.
 // On the other hand, users of DBManager should use this context to get the DB.
 type TxManager interface {
-	RunTx(opts Opts, f func(ctx Context) (Scanner, error)) (Scanner, error)
-	RunNoTx(ctx context.Context, f func(ctx Context) (Scanner, error)) (Scanner, error)
+	RunTx(opts TxOpts, fn func(ctx Context) (Scanner, error)) (Scanner, error)
+	RunNoTx(opts NoTxOpts, fn func(ctx Context) (Scanner, error)) (Scanner, error)
 }
 
 type DBManager[T any] interface {
-	GetDB(ctx Context) (T, error)
+	GetDB(ctx Context) T
 }
 
 type manager[T any] struct {
@@ -41,13 +41,13 @@ func New[T any](p DBProvider[T], opts ...Option) (txm TxManager, dbm DBManager[T
 
 	txm, dbm = m, m
 	if m.cfg.retrier != nil {
-		txm = newManagerWithRetries(txm, m.cfg.retrier)
+		txm = newManagerWithRetrier(txm, m.cfg.retrier)
 	}
 
 	return txm, dbm
 }
 
-func (s *manager[T]) RunTx(opts Opts, f func(ctx Context) (Scanner, error)) (_ Scanner, err error) {
+func (s *manager[T]) RunTx(opts TxOpts, fn func(ctx Context) (Scanner, error)) (_ Scanner, err error) {
 	if opts.Ctx == nil {
 		opts.Ctx = context.Background()
 	}
@@ -57,9 +57,9 @@ func (s *manager[T]) RunTx(opts Opts, f func(ctx Context) (Scanner, error)) (_ S
 		return nil, fmt.Errorf("beginning tx: %w", err)
 	}
 
-	txID := s.nextTxID()
+	id := s.nextID()
+	s.dbs.Store(id, tx.GetDB())
 
-	s.dbs.Store(txID, tx.GetDB())
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("panic: %v", r)
@@ -71,12 +71,12 @@ func (s *manager[T]) RunTx(opts Opts, f func(ctx Context) (Scanner, error)) (_ S
 			}
 		}
 
-		s.dbs.Delete(txID)
+		s.dbs.Delete(id)
 	}()
 
-	scanner, err := f(newContext(opts.Ctx, txID))
+	scanner, err := fn(newContext(opts.Ctx, id))
 	if err != nil {
-		return scanner, err
+		return nil, err
 	}
 
 	if err = tx.Commit(opts.Ctx); err != nil {
@@ -86,49 +86,37 @@ func (s *manager[T]) RunTx(opts Opts, f func(ctx Context) (Scanner, error)) (_ S
 	return scanner, nil
 }
 
-func (s *manager[T]) RunNoTx(ctx context.Context, f func(ctx Context) (Scanner, error)) (_ Scanner, err error) {
-	if ctx == nil {
-		ctx = context.Background()
+func (s *manager[T]) RunNoTx(opts NoTxOpts, fn func(ctx Context) (Scanner, error)) (_ Scanner, err error) {
+	if opts.Ctx == nil {
+		opts.Ctx = context.Background()
 	}
 
-	tx, err := s.dbProvider.BeginTx(Opts{
-		Ctx:      ctx,
-		useRawDB: true,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("beginning raw db: %w", err)
-	}
+	db := s.dbProvider.GetDB(opts)
+	id := s.nextID()
+	s.dbs.Store(id, db)
 
-	txID := s.nextTxID()
-
-	s.dbs.Store(txID, tx.GetDB())
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("panic: %v", r)
 		}
 
-		s.dbs.Delete(txID)
+		s.dbs.Delete(id)
 	}()
 
-	return f(newContext(ctx, txID))
+	return fn(newContext(opts.Ctx, id))
 }
 
-func (s *manager[T]) GetDB(ctx Context) (T, error) {
-	txID := ctx.getTxID()
+func (s *manager[T]) GetDB(ctx Context) T {
+	id := ctx.getID()
 
-	v, ok := s.dbs.Load(txID)
+	v, ok := s.dbs.Load(id)
 	if !ok {
-		return s.empty(), fmt.Errorf("unexpected error: db not found with txID='%d'", txID)
+		panic(fmt.Sprintf("unexpected error: db not found with id='%d'", id))
 	}
 
-	return v.(T), nil
+	return v.(T)
 }
 
-func (s *manager[T]) nextTxID() int64 {
+func (s *manager[T]) nextID() int64 {
 	return atomic.AddInt64(&s.sequence, 1)
-}
-
-func (s *manager[T]) empty() T {
-	var t T
-	return t
 }

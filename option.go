@@ -17,8 +17,8 @@ func WithDefaultRetrier() Option {
 		cfg.retrier = newDefaultRetrier(
 			[]time.Duration{
 				100 * time.Millisecond,
-				250 * time.Millisecond,
-				500 * time.Millisecond,
+				300 * time.Millisecond,
+				600 * time.Millisecond,
 			},
 		)
 	}
