@@ -3,8 +3,11 @@ package txmng
 import (
 	"errors"
 	"fmt"
+	"hash/maphash"
 	"io"
+	"math/rand"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -16,10 +19,30 @@ type Retrier interface {
 
 type defaultRetrier struct {
 	retryDelays []time.Duration
+	jitter      float64
+	randPool    sync.Pool
 }
 
-func newDefaultRetrier(retryDelays []time.Duration) Retrier {
-	return &defaultRetrier{retryDelays: append(retryDelays, 0)}
+func newDefaultRetrier(
+	delays []time.Duration,
+	jitter float64, // [0; 1]
+) Retrier {
+	if jitter < 0 {
+		jitter = 0
+	} else if jitter > 1 {
+		jitter = 1
+	}
+
+	return &defaultRetrier{
+		retryDelays: append(delays, 0),
+		jitter:      jitter,
+		randPool: sync.Pool{
+			New: func() any {
+				seed := int64(new(maphash.Hash).Sum64())
+				return rand.New(rand.NewSource(seed))
+			},
+		},
+	}
 }
 
 func (s *defaultRetrier) Do(fn func() error) error {
@@ -27,7 +50,7 @@ func (s *defaultRetrier) Do(fn func() error) error {
 
 	for i := 0; i < len(s.retryDelays); i++ {
 		if err = fn(); err != nil && s.needRetry(err) {
-			time.Sleep(s.retryDelays[i])
+			time.Sleep(s.calcDelay(s.retryDelays[i]))
 			continue
 		}
 
@@ -35,6 +58,20 @@ func (s *defaultRetrier) Do(fn func() error) error {
 	}
 
 	return err
+}
+
+func (s *defaultRetrier) calcDelay(base time.Duration) time.Duration {
+	baseNS := base.Nanoseconds()
+	offset := int64(float64(baseNS) * s.jitter)
+
+	return time.Duration(s.randInt(baseNS-offset, baseNS+offset))
+}
+
+func (s *defaultRetrier) randInt(a, b int64) int64 {
+	r := s.randPool.Get().(*rand.Rand)
+	defer s.randPool.Put(r)
+
+	return r.Int63n(b-a+1) + a
 }
 
 func (s *defaultRetrier) needRetry(err error) bool {

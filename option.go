@@ -12,6 +12,15 @@ func WithRetrier(r Retrier) Option {
 	return func(cfg *Config) { cfg.retrier = r }
 }
 
+func WithRetrierParams(
+	delays []time.Duration,
+	jitter float64, // [0; 1]
+) Option {
+	return func(cfg *Config) {
+		cfg.retrier = newDefaultRetrier(delays, jitter)
+	}
+}
+
 func WithDefaultRetrier() Option {
 	return func(cfg *Config) {
 		cfg.retrier = newDefaultRetrier(
@@ -20,12 +29,7 @@ func WithDefaultRetrier() Option {
 				300 * time.Millisecond,
 				600 * time.Millisecond,
 			},
+			0.5,
 		)
-	}
-}
-
-func WithDefaultRetrierDelays(delays []time.Duration) Option {
-	return func(cfg *Config) {
-		cfg.retrier = newDefaultRetrier(delays)
 	}
 }

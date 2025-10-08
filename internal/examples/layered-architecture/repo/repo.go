@@ -1,6 +1,8 @@
 package repo
 
 import (
+	"context"
+
 	"github.com/slavaavr/txmng"
 )
 
@@ -33,6 +35,9 @@ func (r *someRepo) Do2(ctx txmng.Context) error {
 
 	// do some work with db
 	_ = db
+	someJob(ctx)
 
 	return nil
 }
+
+func someJob(ctx context.Context) {}
