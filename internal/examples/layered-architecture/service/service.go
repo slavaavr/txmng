@@ -1,11 +1,11 @@
-package services
+package service
 
 import (
 	"context"
 	"fmt"
 
 	"github.com/slavaavr/txmng"
-	"github.com/slavaavr/txmng/examples/layered-architecture/repos"
+	"github.com/slavaavr/txmng/internal/examples/layered-architecture/repo"
 )
 
 type SomeService interface {
@@ -14,12 +14,12 @@ type SomeService interface {
 
 type someService struct {
 	txm  txmng.TxManager
-	repo repos.SomeRepo
+	repo repo.SomeRepo
 }
 
 func NewSomeService(
 	txm txmng.TxManager,
-	repo repos.SomeRepo,
+	repo repo.SomeRepo,
 ) SomeService {
 	return &someService{
 		txm:  txm,
@@ -28,13 +28,14 @@ func NewSomeService(
 }
 
 func (s *someService) Do(ctx context.Context) (int, error) {
-	opts := txmng.Opts{
+	opts := txmng.TxOpts{
 		Ctx:       ctx,
 		Isolation: txmng.LevelDefault,
 		ReadOnly:  false,
+		Ext:       nil,
 	}
 
-	scanner, err := s.txm.Tx(opts, func(ctx txmng.Context) (txmng.Scanner, error) {
+	scanner, err := s.txm.RunTx(opts, func(ctx txmng.Context) (txmng.Scanner, error) {
 		if err := s.repo.Do1(ctx); err != nil {
 			return nil, fmt.Errorf("executing 1 query: %w", err)
 		}

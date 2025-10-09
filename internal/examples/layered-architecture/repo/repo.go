@@ -1,4 +1,4 @@
-package repos
+package repo
 
 import (
 	"context"
@@ -12,10 +12,10 @@ type SomeRepo interface {
 }
 
 type someRepo struct {
-	dbm txmng.DBManager
+	dbm txmng.DBManager[txmng.StdSQL]
 }
 
-func NewSomeRepo(dbm txmng.DBManager) SomeRepo {
+func NewSomeRepo(dbm txmng.DBManager[txmng.StdSQL]) SomeRepo {
 	return &someRepo{
 		dbm: dbm,
 	}
@@ -29,21 +29,18 @@ func (r *someRepo) Do1(ctx txmng.Context) error {
 
 	// do some work with db
 	_ = db
-	foo(ctx)
 
 	return nil
 }
 
 func (r *someRepo) Do2(ctx txmng.Context) error {
-	db, err := r.dbm.GetDB(ctx)
-	if err != nil {
-		return err
-	}
+	db := r.dbm.MustGetDB(ctx)
 
 	// do some work with db
 	_ = db
+	someJob(ctx)
 
 	return nil
 }
 
-func foo(ctx context.Context) {}
+func someJob(ctx context.Context) {}

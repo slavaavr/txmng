@@ -1,30 +1,40 @@
 package txmng
 
-import "database/sql"
+import (
+	"context"
+)
 
 //go:generate mockgen -source=./db_provider.go -destination=./db_provider_mock.go -package txmng
 
-type DBProvider interface {
-	Raw() DB
-	Tx(opts Opts) (DB, error)
+type Tx[T any] interface {
+	GetDB() T
+	Commit(ctx context.Context) error
+	Rollback(ctx context.Context) error
 }
 
-type dbProvider struct {
-	raw func() DB
-	tx  func(opts Opts) (DB, error)
+type DBProvider[T any] interface {
+	BeginTx(opts TxOpts) (Tx[T], error)
+	GetDB(opts NoTxOpts) T
 }
 
-func (p *dbProvider) Raw() DB                  { return p.raw() }
-func (p *dbProvider) Tx(opts Opts) (DB, error) { return p.tx(opts) }
+type txImpl[T any] struct {
+	getDB    func() T
+	commit   func(ctx context.Context) error
+	rollback func(ctx context.Context) error
+}
 
-func NewDefaultSQLDBProvider(db *sql.DB) DBProvider {
-	return &dbProvider{
-		raw: func() DB { return newDBRawAdapter(db) },
-		tx: func(opts Opts) (DB, error) {
-			return db.BeginTx(opts.Ctx, &sql.TxOptions{
-				Isolation: opts.Isolation.toSQL(),
-				ReadOnly:  opts.ReadOnly,
-			})
-		},
+func newTx[T any](
+	getDB func() T,
+	commit func(ctx context.Context) error,
+	rollback func(ctx context.Context) error,
+) Tx[T] {
+	return &txImpl[T]{
+		getDB:    getDB,
+		commit:   commit,
+		rollback: rollback,
 	}
 }
+
+func (s *txImpl[T]) GetDB() T                           { return s.getDB() }
+func (s *txImpl[T]) Commit(ctx context.Context) error   { return s.commit(ctx) }
+func (s *txImpl[T]) Rollback(ctx context.Context) error { return s.rollback(ctx) }

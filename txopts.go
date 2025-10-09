@@ -5,10 +5,22 @@ import (
 	"database/sql"
 )
 
-type Opts struct {
+type TxOpts struct {
 	Ctx       context.Context
 	Isolation IsolationLevel
 	ReadOnly  bool
+	Ext       any
+}
+
+type TxOptsExt struct {
+	DeferrableMode bool
+	BeginQuery     string
+	CommitQuery    string
+}
+
+type NoTxOpts struct {
+	Ctx context.Context
+	Ext any
 }
 
 type IsolationLevel int
