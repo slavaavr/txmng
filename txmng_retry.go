@@ -92,23 +92,23 @@ func (s *defaultRetrier) isSerializationError(err error) bool {
 }
 
 type txManagerWithRetrier struct {
-	mng     TxManager
+	txm     TxManager
 	retrier Retrier
 }
 
 func newTxManagerWithRetrier(m TxManager, r Retrier) TxManager {
 	return &txManagerWithRetrier{
-		mng:     m,
+		txm:     m,
 		retrier: r,
 	}
 }
 
 func (s *txManagerWithRetrier) RunTx(opts TxOpts, fn func(ctx Context) (Scanner, error)) (Scanner, error) {
-	return s.run(func() (Scanner, error) { return s.mng.RunTx(opts, fn) })
+	return s.run(func() (Scanner, error) { return s.txm.RunTx(opts, fn) })
 }
 
 func (s *txManagerWithRetrier) RunNoTx(opts NoTxOpts, fn func(ctx Context) (Scanner, error)) (Scanner, error) {
-	return s.run(func() (Scanner, error) { return s.mng.RunNoTx(opts, fn) })
+	return s.run(func() (Scanner, error) { return s.txm.RunNoTx(opts, fn) })
 }
 
 func (s *txManagerWithRetrier) run(fn func() (Scanner, error)) (Scanner, error) {
