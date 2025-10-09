@@ -3,11 +3,9 @@ package txmng
 import (
 	"errors"
 	"fmt"
-	"hash/maphash"
 	"io"
-	"math/rand"
+	"math/rand/v2"
 	"net"
-	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -20,7 +18,6 @@ type Retrier interface {
 type defaultRetrier struct {
 	retryDelays []time.Duration
 	jitter      float64
-	randPool    sync.Pool
 }
 
 func newDefaultRetrier(
@@ -36,12 +33,6 @@ func newDefaultRetrier(
 	return &defaultRetrier{
 		retryDelays: append(delays, 0),
 		jitter:      jitter,
-		randPool: sync.Pool{
-			New: func() any {
-				seed := int64(new(maphash.Hash).Sum64())
-				return rand.New(rand.NewSource(seed))
-			},
-		},
 	}
 }
 
@@ -67,12 +58,7 @@ func (s *defaultRetrier) calcDelay(base time.Duration) time.Duration {
 	return time.Duration(s.randInt(baseNS-offset, baseNS+offset))
 }
 
-func (s *defaultRetrier) randInt(a, b int64) int64 {
-	r := s.randPool.Get().(*rand.Rand)
-	defer s.randPool.Put(r)
-
-	return r.Int63n(b-a+1) + a
-}
+func (s *defaultRetrier) randInt(a, b int64) int64 { return rand.Int64N(b-a+1) + a }
 
 func (s *defaultRetrier) needRetry(err error) bool {
 	return s.isNetworkError(err) || s.isSerializationError(err)
