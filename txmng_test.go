@@ -57,7 +57,8 @@ func TestTxmng_Parallel(t *testing.T) {
 				assert.Empty(t, ok, "txID already exists within mem -> duplicate of txID")
 				mem.Store(txID, struct{}{})
 
-				db := dbm.GetDB(ctx)
+				db, err := dbm.GetDB(ctx)
+				assert.NoError(t, err)
 				assert.NotEmpty(t, db, "db should exist")
 
 				return nil, nil

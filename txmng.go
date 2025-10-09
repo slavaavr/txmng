@@ -17,7 +17,8 @@ type TxManager interface {
 }
 
 type DBManager[T any] interface {
-	GetDB(ctx Context) T
+	GetDB(ctx Context) (T, error)
+	MustGetDB(ctx Context) T
 }
 
 type manager[T any] struct {
@@ -39,7 +40,7 @@ func New[T any](p DBProvider[T], opts ...Option) (txm TxManager, dbm DBManager[T
 
 	txm, dbm = m, m
 	if cfg.retrier != nil {
-		txm = newManagerWithRetrier(txm, cfg.retrier)
+		txm = newTxManagerWithRetrier(txm, cfg.retrier)
 	}
 
 	return txm, dbm
@@ -104,15 +105,25 @@ func (s *manager[T]) RunNoTx(opts NoTxOpts, fn func(ctx Context) (Scanner, error
 	return fn(newContext(opts.Ctx, id))
 }
 
-func (s *manager[T]) GetDB(ctx Context) T {
+func (s *manager[T]) GetDB(ctx Context) (T, error) {
 	id := ctx.getID()
 
 	v, ok := s.dbs.Load(id)
 	if !ok {
-		panic(fmt.Sprintf("unexpected error: db not found with id='%d'", id))
+		var empty T
+		return empty, ErrDBNotFound
 	}
 
-	return v.(T)
+	return v.(T), nil
+}
+
+func (s *manager[T]) MustGetDB(ctx Context) T {
+	db, err := s.GetDB(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	return db
 }
 
 func (s *manager[T]) nextID() int64 {

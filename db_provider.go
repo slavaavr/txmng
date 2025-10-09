@@ -2,12 +2,6 @@ package txmng
 
 import (
 	"context"
-	"errors"
-)
-
-var (
-	ErrCommitNotSupported   = errors.New("commit is not supported")
-	ErrRollbackNotSupported = errors.New("rollback is not supported")
 )
 
 //go:generate mockgen -source=./db_provider.go -destination=./db_provider_mock.go -package txmng

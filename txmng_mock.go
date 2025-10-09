@@ -94,15 +94,30 @@ func (m *MockDBManager[T]) EXPECT() *MockDBManagerMockRecorder[T] {
 }
 
 // GetDB mocks base method.
-func (m *MockDBManager[T]) GetDB(ctx Context) T {
+func (m *MockDBManager[T]) GetDB(ctx Context) (T, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDB", ctx)
 	ret0, _ := ret[0].(T)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetDB indicates an expected call of GetDB.
 func (mr *MockDBManagerMockRecorder[T]) GetDB(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDB", reflect.TypeOf((*MockDBManager[T])(nil).GetDB), ctx)
+}
+
+// MustGetDB mocks base method.
+func (m *MockDBManager[T]) MustGetDB(ctx Context) T {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MustGetDB", ctx)
+	ret0, _ := ret[0].(T)
+	return ret0
+}
+
+// MustGetDB indicates an expected call of MustGetDB.
+func (mr *MockDBManagerMockRecorder[T]) MustGetDB(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MustGetDB", reflect.TypeOf((*MockDBManager[T])(nil).MustGetDB), ctx)
 }

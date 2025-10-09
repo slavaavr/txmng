@@ -22,6 +22,8 @@ func WithRetrierParams(
 }
 
 func WithDefaultRetrier() Option {
+	const fiftyPercentJitter = 0.5
+
 	return func(cfg *Config) {
 		cfg.retrier = newDefaultRetrier(
 			[]time.Duration{
@@ -29,7 +31,7 @@ func WithDefaultRetrier() Option {
 				300 * time.Millisecond,
 				600 * time.Millisecond,
 			},
-			0.5,
+			fiftyPercentJitter,
 		)
 	}
 }
