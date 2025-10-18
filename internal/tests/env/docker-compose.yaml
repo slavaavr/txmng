@@ -1,0 +1,30 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: txmng_pg_it
+    environment:
+      POSTGRES_DB: db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5430:5432"
+    healthcheck:
+      test: ["CMD", "psql", "-d", "db", "-U", "user"]
+      interval: 2s
+      timeout: 5s
+      retries: 5
+    tmpfs:
+      - /var/lib/postgresql/data:rw,noexec,nosuid,size=100m
+
+  integration_test:
+    build:
+      context: ../../..
+      dockerfile: ./internal/tests/env/Dockerfile
+    container_name: txmng_it
+    environment:
+      PG_DSN: "postgres://user:password@postgres:5432/db?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      ["sh", "-lc", "/usr/local/go/bin/go test -p 1 -v -tags integration ./internal/tests/..."]
