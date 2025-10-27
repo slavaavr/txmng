@@ -15,23 +15,25 @@ $ go get -u github.com/slavaavr/txmng
 // main.go
 var db *pgxpool.Pool = initDB()
 
-dbProvider := txmng.NewPGXProvider(db)
-txm, dbm := txmng.New(dbProvider, txmng.WithDefaultRetrier())
+txm, dbm := txmng.New(
+	txmng.NewPGXProvider(db),
+	txmng.WithDefaultRetrier(),
+)
 
-r := repo.New(dbm)
-s := service.New(txm, r)
-s.Do()
+repo := repo.New(dbm)
+service := service.New(txm, repo)
+service.Do() // run business logic
 
 // service.go
 func (s *Service) Do() error {
-    txOpts := txmng.TxOpts{
+    opts := txmng.TxOpts{
         Ctx:       ctx,
         Isolation: txmng.LevelDefault,
         ReadOnly:  false,
         Ext:       nil,
     }
 	
-    scanner, err := s.txm.RunTx(txOpts, func(ctx txmng.Context) (txmng.Scanner, error) {
+    scanner, err := s.txm.RunTx(opts, func(ctx txmng.Context) (txmng.Scanner, error) {
         e1, err := s.repo.Do1(ctx, params)
         if err != nil {
             return nil, fmt.Errorf("exec Do1: %w", err)
@@ -49,8 +51,8 @@ func (s *Service) Do() error {
     }   
 	
     var (
-        e1 *SomeEntity1
-        e2 *SomeEntity2
+        e1 *Entity1
+        e2 *Entity2
     )
 	
     if err := scanner.Scan(&e1, &e2); err != nil {
@@ -61,7 +63,7 @@ func (s *Service) Do() error {
 }
 
 // repo.go
-func (r *Repo) Do1(ctx txmng.Context, params Params) (*SomeEntity1, error) {
+func (r *Repo) Do1(ctx txmng.Context, params Params) (*Entity1, error) {
     db, err := r.dbm.GetDB(ctx)
     if err != nil {
         return nil, err	
@@ -70,7 +72,7 @@ func (r *Repo) Do1(ctx txmng.Context, params Params) (*SomeEntity1, error) {
     return r.query(db, params)
 }
 
-func (r *Repo) Do2(ctx txmng.Context, params Params) (*SomeEntity2, error) {
+func (r *Repo) Do2(ctx txmng.Context, params Params) (*Entity2, error) {
     db := r.dbm.MustGetDB(ctx)
     return r.query(db, params)
 }
