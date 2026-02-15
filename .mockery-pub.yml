@@ -1,0 +1,14 @@
+all: false
+dir: 'txmngtest'
+filename: mocks.go
+force-file-write: true
+formatter: goimports
+log-level: info
+structname: '{{.InterfaceName}}'
+pkgname: 'txmngtest'
+recursive: false
+template: testify
+packages:
+  github.com/slavaavr/txmng:
+    config:
+      all: true
