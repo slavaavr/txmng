@@ -71,31 +71,30 @@ func (s *defaultRetrier) calcDelay(base time.Duration) time.Duration {
 func (s *defaultRetrier) randInt(a, b int64) int64 { return rand.Int64N(b-a+1) + a }
 
 func (s *defaultRetrier) needRetry(err error) bool {
-	return s.isNetworkError(err) || s.isSerializationError(err)
-}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
 
-func (s *defaultRetrier) isNetworkError(err error) bool {
 	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) {
 		return true
 	}
 
 	var netErr net.Error
-	if errors.As(err, &netErr) {
+	if errors.As(err, &netErr) && netErr.Timeout() {
 		return true
 	}
 
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
-		return pgErr.Code == "08000" || pgErr.Code == "08003" || pgErr.Code == "08006"
-	}
+		switch pgErr.Code {
+		case "08000", "08003", "08006":
+			// network errors
+			return true
 
-	return false
-}
-
-func (s *defaultRetrier) isSerializationError(err error) bool {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		return pgErr.Code == "40001" || pgErr.Code == "40P01"
+		case "40001", "40P01", "55P03":
+			// serialization errors
+			return true
+		}
 	}
 
 	return false

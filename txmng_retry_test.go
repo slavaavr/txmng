@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"testing"
 	"time"
 
@@ -15,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDefaultRetrier_isNetworkError(t *testing.T) {
+func TestDefaultRetrier_needRetry(t *testing.T) {
 	cases := []struct {
 		name     string
 		body     error
@@ -32,13 +31,8 @@ func TestDefaultRetrier_isNetworkError(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "net.Error error",
-			body:     fmt.Errorf("some error: %w", net.ErrClosed),
-			expected: true,
-		},
-		{
-			name:     "net.Error error 2",
-			body:     fmt.Errorf("some error: %w", net.UnknownNetworkError("net error")),
+			name:     "net.Error temp error",
+			body:     fmt.Errorf("some error: %w", &timeoutError{}),
 			expected: true,
 		},
 		{
@@ -61,25 +55,6 @@ func TestDefaultRetrier_isNetworkError(t *testing.T) {
 			body:     errors.New("some error"),
 			expected: false,
 		},
-	}
-
-	s := defaultRetrier{}
-
-	for _, c := range cases {
-		c := c
-		t.Run(c.name, func(t *testing.T) {
-			actual := s.isNetworkError(c.body)
-			assert.Equal(t, c.expected, actual)
-		})
-	}
-}
-
-func TestDefaultRetrier_isSerializationError(t *testing.T) {
-	cases := []struct {
-		name     string
-		body     error
-		expected bool
-	}{
 		{
 			name:     "pgx serialization error. 40001 — Serialization Failure",
 			body:     fmt.Errorf("some error: %w", &pgconn.PgError{Code: "40001"}),
@@ -88,6 +63,11 @@ func TestDefaultRetrier_isSerializationError(t *testing.T) {
 		{
 			name:     "pgx serialization error. 40P01 — Deadlock Detected",
 			body:     fmt.Errorf("some error: %w", &pgconn.PgError{Code: "40P01"}),
+			expected: true,
+		},
+		{
+			name:     "pgx serialization error. 55P03 — Lock Not Available",
+			body:     fmt.Errorf("some error: %w", &pgconn.PgError{Code: "55P03"}),
 			expected: true,
 		},
 		{
@@ -107,7 +87,7 @@ func TestDefaultRetrier_isSerializationError(t *testing.T) {
 	for _, c := range cases {
 		c := c
 		t.Run(c.name, func(t *testing.T) {
-			actual := s.isSerializationError(c.body)
+			actual := s.needRetry(c.body)
 			assert.Equal(t, c.expected, actual)
 		})
 	}
@@ -479,3 +459,9 @@ func TestTxManagerWithRetrier(t *testing.T) {
 		})
 	}
 }
+
+type timeoutError struct{}
+
+func (e *timeoutError) Error() string   { return "i/o timeout" }
+func (e *timeoutError) Timeout() bool   { return true }
+func (e *timeoutError) Temporary() bool { return true }

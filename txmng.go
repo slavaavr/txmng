@@ -55,7 +55,7 @@ func (s *manager[T]) RunTx(opts TxOpts, fn func(ctx Context) (Result, error)) (_
 
 		if err != nil {
 			if err2 := tx.Rollback(opts.Ctx); err2 != nil {
-				err = fmt.Errorf("rolling back the error='%s': %w", err, err2)
+				err = fmt.Errorf("rollback tx (%s): %w", err2, err)
 			}
 		}
 

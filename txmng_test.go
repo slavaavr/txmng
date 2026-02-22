@@ -113,9 +113,9 @@ func TestManager_RunTx(t *testing.T) {
 			},
 			expected: nil,
 			expectedErr: fmt.Errorf(
-				"rolling back the error='%s': %w",
-				someErr,
+				"rollback tx (%s): %w",
 				errors.New("rollback error"),
+				someErr,
 			),
 		},
 		{
