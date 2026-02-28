@@ -6,26 +6,30 @@ import (
 )
 
 type TxManager interface {
-	RunTx(opts TxOpts, fn func(ctx Context) (Result, error)) (Result, error)
-	RunNoTx(opts NoTxOpts, fn func(ctx Context) (Result, error)) (Result, error)
+	RunTx(opts TxOpts, fn func(ctx TxContext) (Result, error)) (Result, error)
+	RunNoTx(opts NoTxOpts, fn func(ctx NoTxContext) (Result, error)) (Result, error)
 }
 
 type DBManager[T any] interface {
-	GetDB(ctx Context) T
+	GetDB(ctx Context) (db T, rawCtx context.Context)
 }
 
 type manager[T any] struct {
-	dbProvider DBProvider[T]
+	dbProvider        DBProvider[T]
+	defaultFallbackDB T
+	dynamicFallbackDB bool
 }
 
 func New[T any](p DBProvider[T], opts ...Option) (txm TxManager, dbm DBManager[T]) {
-	cfg := config{}
+	var cfg config
 	for _, opt := range opts {
 		opt(&cfg)
 	}
 
 	m := &manager[T]{
-		dbProvider: p,
+		dbProvider:        p,
+		defaultFallbackDB: p.GetDB(NoTxOpts{}),
+		dynamicFallbackDB: cfg.dynamicFallbackDB,
 	}
 
 	txm, dbm = m, m
@@ -36,7 +40,7 @@ func New[T any](p DBProvider[T], opts ...Option) (txm TxManager, dbm DBManager[T
 	return txm, dbm
 }
 
-func (s *manager[T]) RunTx(opts TxOpts, fn func(ctx Context) (Result, error)) (_ Result, err error) {
+func (s *manager[T]) RunTx(opts TxOpts, fn func(ctx TxContext) (Result, error)) (_ Result, err error) {
 	if opts.Ctx == nil {
 		opts.Ctx = context.Background()
 	}
@@ -46,7 +50,12 @@ func (s *manager[T]) RunTx(opts TxOpts, fn func(ctx Context) (Result, error)) (_
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
 
-	newCtx := newContext(opts.Ctx, tx.GetDB())
+	fallbackDB := s.defaultFallbackDB
+	if s.dynamicFallbackDB {
+		fallbackDB = s.dbProvider.GetDB(newNoTxOpts(opts.Ctx, opts.Ext))
+	}
+
+	newCtx := newTxContext(opts.Ctx, tx.GetDB(), fallbackDB)
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -74,12 +83,12 @@ func (s *manager[T]) RunTx(opts TxOpts, fn func(ctx Context) (Result, error)) (_
 	return res, nil
 }
 
-func (s *manager[T]) RunNoTx(opts NoTxOpts, fn func(ctx Context) (Result, error)) (_ Result, err error) {
+func (s *manager[T]) RunNoTx(opts NoTxOpts, fn func(ctx NoTxContext) (Result, error)) (_ Result, err error) {
 	if opts.Ctx == nil {
 		opts.Ctx = context.Background()
 	}
 
-	newCtx := newContext(opts.Ctx, s.dbProvider.GetDB(opts))
+	newCtx := newNoTxContext(opts.Ctx, s.dbProvider.GetDB(opts))
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -92,6 +101,6 @@ func (s *manager[T]) RunNoTx(opts NoTxOpts, fn func(ctx Context) (Result, error)
 	return fn(newCtx)
 }
 
-func (s *manager[T]) GetDB(ctx Context) T {
-	return ctx.getDB().(T)
+func (s *manager[T]) GetDB(ctx Context) (db T, rawCtx context.Context) {
+	return ctx.getDB().(T), ctx.rawCtx()
 }

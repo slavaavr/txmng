@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var someErr = errors.New("some error")
+type someSource struct{}
 
-func TestManager_RunTx(t *testing.T) {
+func TestScopedManager_RunTx(t *testing.T) {
 	opts := TxOpts{
 		Ctx:       context.Background(),
 		Isolation: LevelDefault,
@@ -26,7 +26,7 @@ func TestManager_RunTx(t *testing.T) {
 		name              string
 		prepareDBProvider func(m *MockDBProvider[PGXDB], tx *MockTx[PGXDB])
 		opts              TxOpts
-		job               func(ctx TxContext) (Result, error)
+		job               func(ctx STxContext[someSource]) (Result, error)
 		expected          Result
 		expectedErr       error
 	}{
@@ -50,7 +50,7 @@ func TestManager_RunTx(t *testing.T) {
 					Return(nil)
 			},
 			opts: opts,
-			job: func(ctx TxContext) (Result, error) {
+			job: func(ctx STxContext[someSource]) (Result, error) {
 				return NewResult("41", 42, 4.3), nil
 			},
 			expected:    NewResult("41", 42, 4.3),
@@ -68,7 +68,7 @@ func TestManager_RunTx(t *testing.T) {
 					Return(nil)
 			},
 			opts: opts,
-			job: func(ctx TxContext) (Result, error) {
+			job: func(ctx STxContext[someSource]) (Result, error) {
 				return NewResult(42), nil
 			},
 			expected:    nil,
@@ -98,7 +98,7 @@ func TestManager_RunTx(t *testing.T) {
 					Return(nil)
 			},
 			opts: opts,
-			job: func(ctx TxContext) (Result, error) {
+			job: func(ctx STxContext[someSource]) (Result, error) {
 				return NewResult(42), nil
 			},
 			expected:    nil,
@@ -124,7 +124,7 @@ func TestManager_RunTx(t *testing.T) {
 					Return(nil)
 			},
 			opts: opts,
-			job: func(ctx TxContext) (Result, error) {
+			job: func(ctx STxContext[someSource]) (Result, error) {
 				return nil, someErr
 			},
 			expected: nil,
@@ -154,7 +154,7 @@ func TestManager_RunTx(t *testing.T) {
 					Return(nil)
 			},
 			opts: opts,
-			job: func(ctx TxContext) (Result, error) {
+			job: func(ctx STxContext[someSource]) (Result, error) {
 				panic(someErr)
 			},
 			expected:    nil,
@@ -188,7 +188,7 @@ func TestManager_RunTx(t *testing.T) {
 				ReadOnly:  false,
 				Ext:       nil,
 			},
-			job: func(ctx TxContext) (Result, error) {
+			job: func(ctx STxContext[someSource]) (Result, error) {
 				return NewResult("41", 42, 4.3), nil
 			},
 			expected:    NewResult("41", 42, 4.3),
@@ -203,7 +203,7 @@ func TestManager_RunTx(t *testing.T) {
 		txMock := NewMockTx[PGXDB](t)
 		c.prepareDBProvider(dbp, txMock)
 
-		txm, _ := New[PGXDB](dbp)
+		txm, _ := NewScoped[someSource, PGXDB](dbp)
 
 		t.Run(c.name, func(t *testing.T) {
 			actual, err := txm.RunTx(c.opts, c.job)
@@ -214,73 +214,7 @@ func TestManager_RunTx(t *testing.T) {
 	}
 }
 
-func TestManager_RunTxWithDynamicFallbackDB(t *testing.T) {
-	opts := TxOpts{
-		Ctx:       context.Background(),
-		Isolation: LevelDefault,
-		ReadOnly:  false,
-		Ext:       "dynamic fallback db",
-	}
-
-	cases := []struct {
-		name              string
-		prepareDBProvider func(m *MockDBProvider[PGXDB], tx *MockTx[PGXDB])
-		opts              TxOpts
-		job               func(ctx TxContext) (Result, error)
-		expected          Result
-		expectedErr       error
-	}{
-		{
-			name: "valid example",
-			prepareDBProvider: func(m *MockDBProvider[PGXDB], tx *MockTx[PGXDB]) {
-				tx.EXPECT().
-					GetDB().
-					Return(nil)
-
-				tx.EXPECT().
-					Commit(mock.Anything).
-					Return(nil)
-
-				m.EXPECT().
-					BeginTx(opts).
-					Return(tx, nil)
-
-				m.EXPECT().
-					GetDB(NoTxOpts{}).
-					Return(nil)
-
-				m.EXPECT().
-					GetDB(newNoTxOpts(opts.Ctx, opts.Ext)).
-					Return(NewMockPGXDB(t))
-			},
-			opts: opts,
-			job: func(ctx TxContext) (Result, error) {
-				return NewResult("41", 42, 4.3), nil
-			},
-			expected:    NewResult("41", 42, 4.3),
-			expectedErr: nil,
-		},
-	}
-
-	for _, c := range cases {
-		c := c
-
-		dbp := NewMockDBProvider[PGXDB](t)
-		txMock := NewMockTx[PGXDB](t)
-		c.prepareDBProvider(dbp, txMock)
-
-		txm, _ := New[PGXDB](dbp, WithDynamicFallbackDB())
-
-		t.Run(c.name, func(t *testing.T) {
-			actual, err := txm.RunTx(c.opts, c.job)
-
-			require.Equal(t, c.expectedErr, err)
-			assert.Equal(t, c.expected, actual)
-		})
-	}
-}
-
-func TestManager_RunNoTx(t *testing.T) {
+func TestScopedManager_RunNoTx(t *testing.T) {
 	opts := NoTxOpts{
 		Ctx: context.Background(),
 		Ext: nil,
@@ -290,7 +224,7 @@ func TestManager_RunNoTx(t *testing.T) {
 		name              string
 		prepareDBProvider func(m *MockDBProvider[PGXDB])
 		opts              NoTxOpts
-		job               func(ctx NoTxContext) (Result, error)
+		job               func(ctx SNoTxContext[someSource]) (Result, error)
 		expected          Result
 		expectedErr       error
 	}{
@@ -306,7 +240,7 @@ func TestManager_RunNoTx(t *testing.T) {
 					Return(nil)
 			},
 			opts: opts,
-			job: func(ctx NoTxContext) (Result, error) {
+			job: func(ctx SNoTxContext[someSource]) (Result, error) {
 				return NewResult("41", 42, 4.3), nil
 			},
 			expected:    NewResult("41", 42, 4.3),
@@ -324,7 +258,7 @@ func TestManager_RunNoTx(t *testing.T) {
 					Return(nil)
 			},
 			opts: opts,
-			job: func(ctx NoTxContext) (Result, error) {
+			job: func(ctx SNoTxContext[someSource]) (Result, error) {
 				return nil, someErr
 			},
 			expected:    nil,
@@ -342,7 +276,7 @@ func TestManager_RunNoTx(t *testing.T) {
 					Return(nil)
 			},
 			opts: opts,
-			job: func(ctx NoTxContext) (Result, error) {
+			job: func(ctx SNoTxContext[someSource]) (Result, error) {
 				panic(someErr)
 			},
 			expected:    nil,
@@ -366,7 +300,7 @@ func TestManager_RunNoTx(t *testing.T) {
 				Ctx: nil,
 				Ext: nil,
 			},
-			job: func(ctx NoTxContext) (Result, error) {
+			job: func(ctx SNoTxContext[someSource]) (Result, error) {
 				return NewResult("41", 42, 4.3), nil
 			},
 			expected:    NewResult("41", 42, 4.3),
@@ -380,7 +314,7 @@ func TestManager_RunNoTx(t *testing.T) {
 		dbp := NewMockDBProvider[PGXDB](t)
 		c.prepareDBProvider(dbp)
 
-		txm, _ := New[PGXDB](dbp)
+		txm, _ := NewScoped[someSource, PGXDB](dbp)
 
 		t.Run(c.name, func(t *testing.T) {
 			actual, err := txm.RunNoTx(c.opts, c.job)
@@ -391,7 +325,7 @@ func TestManager_RunNoTx(t *testing.T) {
 	}
 }
 
-func TestManager_GetDB(t *testing.T) {
+func TestScopedManager_GetDB(t *testing.T) {
 	txOpts := TxOpts{
 		Ctx:       context.Background(),
 		Isolation: LevelDefault,
@@ -407,7 +341,7 @@ func TestManager_GetDB(t *testing.T) {
 	cases := []struct {
 		name              string
 		prepareDBProvider func(m *MockDBProvider[PGXDB], tx *MockTx[PGXDB])
-		runJob            func(txm TxManager, dbm DBManager[PGXDB]) (Result, error)
+		runJob            func(txm STxManager[someSource], dbm SDBManager[someSource, PGXDB]) (Result, error)
 		expected          Result
 		expectedErr       error
 	}{
@@ -430,8 +364,8 @@ func TestManager_GetDB(t *testing.T) {
 					GetDB(NoTxOpts{}).
 					Return(nil)
 			},
-			runJob: func(txm TxManager, dbm DBManager[PGXDB]) (Result, error) {
-				return txm.RunTx(txOpts, func(ctx TxContext) (Result, error) {
+			runJob: func(txm STxManager[someSource], dbm SDBManager[someSource, PGXDB]) (Result, error) {
+				return txm.RunTx(txOpts, func(ctx STxContext[someSource]) (Result, error) {
 					_, _ = dbm.GetDB(ctx)
 					return NewResult(42), nil
 				})
@@ -450,8 +384,8 @@ func TestManager_GetDB(t *testing.T) {
 					GetDB(NoTxOpts{}).
 					Return(nil)
 			},
-			runJob: func(txm TxManager, dbm DBManager[PGXDB]) (Result, error) {
-				return txm.RunNoTx(noTxOpts, func(ctx NoTxContext) (Result, error) {
+			runJob: func(txm STxManager[someSource], dbm SDBManager[someSource, PGXDB]) (Result, error) {
+				return txm.RunNoTx(noTxOpts, func(ctx SNoTxContext[someSource]) (Result, error) {
 					_, _ = dbm.GetDB(ctx)
 					return NewResult(42), nil
 				})
@@ -482,16 +416,16 @@ func TestManager_GetDB(t *testing.T) {
 					GetDB(NoTxOpts{}).
 					Return(nil)
 			},
-			runJob: func(txm TxManager, dbm DBManager[PGXDB]) (Result, error) {
-				var outdatedCtx Context
+			runJob: func(txm STxManager[someSource], dbm SDBManager[someSource, PGXDB]) (Result, error) {
+				var outdatedCtx SContext[someSource]
 
-				_, err := txm.RunTx(txOpts, func(ctx TxContext) (Result, error) {
+				_, err := txm.RunTx(txOpts, func(ctx STxContext[someSource]) (Result, error) {
 					outdatedCtx = ctx
 					return nil, nil
 				})
 				require.NoError(t, err)
 
-				_, err = txm.RunTx(txOpts, func(ctx TxContext) (Result, error) {
+				_, err = txm.RunTx(txOpts, func(ctx STxContext[someSource]) (Result, error) {
 					_, _ = dbm.GetDB(outdatedCtx)
 					return nil, nil
 				})
@@ -512,8 +446,8 @@ func TestManager_GetDB(t *testing.T) {
 					GetDB(NoTxOpts{}).
 					Return(nil)
 			},
-			runJob: func(txm TxManager, dbm DBManager[PGXDB]) (Result, error) {
-				return txm.RunNoTx(noTxOpts, func(ctx NoTxContext) (Result, error) {
+			runJob: func(txm STxManager[someSource], dbm SDBManager[someSource, PGXDB]) (Result, error) {
+				return txm.RunNoTx(noTxOpts, func(ctx SNoTxContext[someSource]) (Result, error) {
 					_, _ = dbm.GetDB(ctx)
 					return NewResult(42), nil
 				})
@@ -530,7 +464,7 @@ func TestManager_GetDB(t *testing.T) {
 		tx := NewMockTx[PGXDB](t)
 		c.prepareDBProvider(dbp, tx)
 
-		txm, dbm := New[PGXDB](dbp)
+		txm, dbm := NewScoped[someSource, PGXDB](dbp)
 
 		t.Run(c.name, func(t *testing.T) {
 			actual, err := c.runJob(txm, dbm)
@@ -541,7 +475,7 @@ func TestManager_GetDB(t *testing.T) {
 	}
 }
 
-func TestManager_RunParallel(t *testing.T) {
+func TestScopedManager_RunParallel(t *testing.T) {
 	const countOfParallelQueries = 50_000
 
 	txOpts := TxOpts{
@@ -559,7 +493,7 @@ func TestManager_RunParallel(t *testing.T) {
 	cases := []struct {
 		name              string
 		prepareDBProvider func(m *MockDBProvider[PGXDB], tx *MockTx[PGXDB])
-		runJob            func(txm TxManager, dbm DBManager[PGXDB]) (Result, error)
+		runJob            func(txm STxManager[someSource], dbm SDBManager[someSource, PGXDB]) (Result, error)
 		expected          Result
 		expectedErr       error
 	}{
@@ -585,8 +519,8 @@ func TestManager_RunParallel(t *testing.T) {
 					GetDB(NoTxOpts{}).
 					Return(nil)
 			},
-			runJob: func(txm TxManager, dbm DBManager[PGXDB]) (Result, error) {
-				return txm.RunTx(txOpts, func(ctx TxContext) (Result, error) {
+			runJob: func(txm STxManager[someSource], dbm SDBManager[someSource, PGXDB]) (Result, error) {
+				return txm.RunTx(txOpts, func(ctx STxContext[someSource]) (Result, error) {
 					db, rawCtx := dbm.GetDB(ctx)
 					require.NotNil(t, db)
 					require.NotNil(t, rawCtx)
@@ -608,8 +542,8 @@ func TestManager_RunParallel(t *testing.T) {
 					GetDB(NoTxOpts{}).
 					Return(nil)
 			},
-			runJob: func(txm TxManager, dbm DBManager[PGXDB]) (Result, error) {
-				return txm.RunNoTx(noTxOpts, func(ctx NoTxContext) (Result, error) {
+			runJob: func(txm STxManager[someSource], dbm SDBManager[someSource, PGXDB]) (Result, error) {
+				return txm.RunNoTx(noTxOpts, func(ctx SNoTxContext[someSource]) (Result, error) {
 					db, rawCtx := dbm.GetDB(ctx)
 					require.NotNil(t, db)
 					require.NotNil(t, rawCtx)
@@ -629,7 +563,7 @@ func TestManager_RunParallel(t *testing.T) {
 			tx := NewMockTx[PGXDB](t)
 			c.prepareDBProvider(dbp, tx)
 
-			txm, dbm := New[PGXDB](dbp)
+			txm, dbm := NewScoped[someSource, PGXDB](dbp)
 			wg := &sync.WaitGroup{}
 
 			for i := 0; i < countOfParallelQueries; i++ {
@@ -643,13 +577,4 @@ func TestManager_RunParallel(t *testing.T) {
 			wg.Wait()
 		})
 	}
-}
-
-func wgGo(wg *sync.WaitGroup, f func()) {
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-		f()
-	}()
 }

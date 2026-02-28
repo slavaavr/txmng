@@ -9,7 +9,6 @@ import (
 type SomeRepo interface {
 	Do1(ctx txmng.Context) error
 	Do2(ctx txmng.Context) error
-	Do3(ctx txmng.Context) error
 }
 
 type someRepo struct {
@@ -24,19 +23,16 @@ func NewSomeRepo(dbm txmng.DBManager[txmng.SQLDB]) SomeRepo {
 
 func (r *someRepo) Do1(ctx txmng.Context) error {
 	// do some work with db
-	_ = r.dbm.GetDB(ctx)
+	db, rawCtx := r.dbm.GetDB(ctx)
+	foo(rawCtx, db)
+
 	return nil
 }
 
 func (r *someRepo) Do2(ctx txmng.Context) error {
 	// do some work with db
-	_ = r.dbm.GetDB(ctx)
+	_, _ = r.dbm.GetDB(ctx)
 	return nil
 }
 
-func (r *someRepo) Do3(ctx txmng.Context) error {
-	// do some work with db
-	return someJob(ctx, r.dbm.GetDB(ctx))
-}
-
-func someJob(ctx context.Context, db txmng.SQLDB) error { return nil }
+func foo(ctx context.Context, db txmng.SQLDB) {}

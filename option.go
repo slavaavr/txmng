@@ -3,7 +3,8 @@ package txmng
 import "time"
 
 type config struct {
-	retrier Retrier
+	retrier           Retrier
+	dynamicFallbackDB bool
 }
 type Option func(cfg *config)
 
@@ -33,4 +34,8 @@ func WithDefaultRetrier() Option {
 			},
 		)
 	}
+}
+
+func WithDynamicFallbackDB() Option {
+	return func(cfg *config) { cfg.dynamicFallbackDB = true }
 }

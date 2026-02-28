@@ -309,12 +309,16 @@ func TestTxManagerWithRetrier(t *testing.T) {
 						return nil
 					})
 			},
-			prepareDBProvider: func(m *MockDBProvider[PGXDB]) {},
+			prepareDBProvider: func(m *MockDBProvider[PGXDB]) {
+				m.EXPECT().
+					GetDB(NoTxOpts{}).
+					Return(NewMockPGXDB(t))
+			},
 			runJob: func(txm TxManager) (Result, error) {
 				txOptsTmp := txOpts
 				txOptsTmp.Ctx = nil
 
-				return txm.RunTx(txOptsTmp, func(ctx Context) (Result, error) { return nil, nil })
+				return txm.RunTx(txOptsTmp, func(ctx TxContext) (Result, error) { return nil, nil })
 			},
 			expected:    nil,
 			expectedErr: nil,
@@ -326,9 +330,13 @@ func TestTxManagerWithRetrier(t *testing.T) {
 					Do(mock.Anything, mock.Anything).
 					Return(someErr)
 			},
-			prepareDBProvider: func(m *MockDBProvider[PGXDB]) {},
+			prepareDBProvider: func(m *MockDBProvider[PGXDB]) {
+				m.EXPECT().
+					GetDB(NoTxOpts{}).
+					Return(NewMockPGXDB(t))
+			},
 			runJob: func(txm TxManager) (Result, error) {
-				return txm.RunTx(txOpts, func(ctx Context) (Result, error) { return nil, nil })
+				return txm.RunTx(txOpts, func(ctx TxContext) (Result, error) { return nil, nil })
 			},
 			expected:    nil,
 			expectedErr: fmt.Errorf("retry: %w", someErr),
@@ -352,9 +360,12 @@ func TestTxManagerWithRetrier(t *testing.T) {
 					Return(NewMockPGXDB(t))
 
 				m.EXPECT().BeginTx(mock.Anything).Return(tx, nil)
+				m.EXPECT().
+					GetDB(NoTxOpts{}).
+					Return(NewMockPGXDB(t))
 			},
 			runJob: func(txm TxManager) (Result, error) {
-				return txm.RunTx(txOpts, func(ctx Context) (Result, error) { return nil, someErr })
+				return txm.RunTx(txOpts, func(ctx TxContext) (Result, error) { return nil, someErr })
 			},
 			expected:    nil,
 			expectedErr: fmt.Errorf("retry: %w", someErr),
@@ -378,9 +389,12 @@ func TestTxManagerWithRetrier(t *testing.T) {
 					Return(NewMockPGXDB(t))
 
 				m.EXPECT().BeginTx(mock.Anything).Return(tx, nil)
+				m.EXPECT().
+					GetDB(NoTxOpts{}).
+					Return(NewMockPGXDB(t))
 			},
 			runJob: func(txm TxManager) (Result, error) {
-				return txm.RunTx(txOpts, func(ctx Context) (Result, error) { return NewResult(41), nil })
+				return txm.RunTx(txOpts, func(ctx TxContext) (Result, error) { return NewResult(41), nil })
 			},
 			expected:    NewResult(41),
 			expectedErr: nil,
@@ -392,9 +406,13 @@ func TestTxManagerWithRetrier(t *testing.T) {
 					Do(mock.Anything, mock.Anything).
 					Return(someErr)
 			},
-			prepareDBProvider: func(m *MockDBProvider[PGXDB]) {},
+			prepareDBProvider: func(m *MockDBProvider[PGXDB]) {
+				m.EXPECT().
+					GetDB(NoTxOpts{}).
+					Return(NewMockPGXDB(t))
+			},
 			runJob: func(txm TxManager) (Result, error) {
-				return txm.RunNoTx(noTxOpts, func(ctx Context) (Result, error) { return nil, nil })
+				return txm.RunNoTx(noTxOpts, func(ctx NoTxContext) (Result, error) { return nil, nil })
 			},
 			expected:    nil,
 			expectedErr: fmt.Errorf("retry: %w", someErr),
@@ -414,7 +432,7 @@ func TestTxManagerWithRetrier(t *testing.T) {
 					Return(NewMockPGXDB(t))
 			},
 			runJob: func(txm TxManager) (Result, error) {
-				return txm.RunNoTx(noTxOpts, func(ctx Context) (Result, error) { return nil, someErr })
+				return txm.RunNoTx(noTxOpts, func(ctx NoTxContext) (Result, error) { return nil, someErr })
 			},
 			expected:    nil,
 			expectedErr: fmt.Errorf("retry: %w", someErr),
@@ -434,7 +452,7 @@ func TestTxManagerWithRetrier(t *testing.T) {
 					Return(NewMockPGXDB(t))
 			},
 			runJob: func(txm TxManager) (Result, error) {
-				return txm.RunNoTx(noTxOpts, func(ctx Context) (Result, error) { return NewResult(42), nil })
+				return txm.RunNoTx(noTxOpts, func(ctx NoTxContext) (Result, error) { return NewResult(42), nil })
 			},
 			expected:    NewResult(42),
 			expectedErr: nil,

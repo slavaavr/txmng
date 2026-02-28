@@ -1,33 +1,57 @@
 package txmng
 
-import "context"
+import (
+	"context"
+)
 
 type Context interface {
-	context.Context
-	getDB() any
-	close()
+	commonContext
+	contextMarker()
 }
+
+type TxContext interface {
+	Context
+	NoTxContext() NoTxContext
+	txContextMarker()
+}
+
+type NoTxContext interface {
+	Context
+	context.Context
+	noTxContextMarker()
+}
+
+var _ Context = (*contextImpl)(nil)
+var _ TxContext = (*contextImpl)(nil)
+var _ NoTxContext = (*contextImpl)(nil)
 
 type contextImpl struct {
-	context.Context
-	db     any
-	closed bool
+	*commonContextImpl
+	fallbackDB any
 }
 
-func newContext(ctx context.Context, db any) Context {
+func newTxContext(ctx context.Context, primaryDB, fallbackDB any) *contextImpl {
 	return &contextImpl{
-		Context: ctx,
-		db:      db,
-		closed:  false,
+		commonContextImpl: newCommonContext(ctx, primaryDB),
+		fallbackDB:        fallbackDB,
 	}
 }
 
-func (s *contextImpl) getDB() any {
-	if s.closed {
-		panic(errInvalidContext)
+func newNoTxContext(ctx context.Context, primaryDB any) *contextImpl {
+	// Do not use fallbackDB: NoTxContext() is defined only on TxContext
+	return &contextImpl{
+		commonContextImpl: newCommonContext(ctx, primaryDB),
+		fallbackDB:        nil,
 	}
-
-	return s.db
 }
 
-func (s *contextImpl) close() { s.closed = true }
+func (s *contextImpl) NoTxContext() NoTxContext {
+	return &contextImpl{
+		commonContextImpl: s.commonContextImpl.withDB(s.fallbackDB),
+		fallbackDB:        s.fallbackDB,
+	}
+}
+
+func (s *contextImpl) txContextMarker()   {}
+func (s *contextImpl) noTxContextMarker() {}
+func (s *contextImpl) contextMarker()     {}

@@ -23,6 +23,13 @@ type NoTxOpts struct {
 	Ext any
 }
 
+func newNoTxOpts(ctx context.Context, ext any) NoTxOpts {
+	return NoTxOpts{
+		Ctx: ctx,
+		Ext: ext,
+	}
+}
+
 type IsolationLevel int
 
 const (

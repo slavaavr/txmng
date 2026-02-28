@@ -35,9 +35,13 @@ func (s *someService) Do(ctx context.Context) (int, error) {
 		Ext:       nil,
 	}
 
-	res, err := s.txm.RunTx(txOpts, func(ctx txmng.Context) (txmng.Result, error) {
+	res, err := s.txm.RunTx(txOpts, func(ctx txmng.TxContext) (txmng.Result, error) {
 		if err := s.repo.Do1(ctx); err != nil {
 			return nil, fmt.Errorf("executing 1 query: %w", err)
+		}
+
+		if err := execExternalRequest(ctx.NoTxContext()); err != nil {
+			return nil, fmt.Errorf("executing external request: %w", err)
 		}
 
 		if err := s.repo.Do2(ctx); err != nil {
@@ -62,9 +66,13 @@ func (s *someService) Do(ctx context.Context) (int, error) {
 		Ext: nil,
 	}
 
-	_, err = s.txm.RunNoTx(noTxOpts, func(ctx txmng.Context) (txmng.Result, error) {
-		if err := s.repo.Do3(ctx); err != nil {
+	_, err = s.txm.RunNoTx(noTxOpts, func(ctx txmng.NoTxContext) (txmng.Result, error) {
+		if err := s.repo.Do2(ctx); err != nil {
 			return nil, fmt.Errorf("executing 3 query: %w", err)
+		}
+
+		if err := execExternalRequest(ctx); err != nil {
+			return nil, fmt.Errorf("executing external request: %w", err)
 		}
 
 		return nil, nil
@@ -75,3 +83,5 @@ func (s *someService) Do(ctx context.Context) (int, error) {
 
 	return val, nil
 }
+
+func execExternalRequest(_ context.Context) error { return nil }
